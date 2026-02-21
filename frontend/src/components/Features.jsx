@@ -24,7 +24,7 @@ const cards = [
 const containerV = { hidden: {}, visible: { transition: { staggerChildren: 0.12 } } };
 const cardV = { hidden: { opacity: 0, y: 30 }, visible: { opacity: 1, y: 0, transition: { duration: 0.5 } } };
 
-export default function Features({ onTryApp }) {
+export default function Features({ onTryApp, onOpenWaitlist }) {
     const [copied, setCopied] = useState(false);
 
     const handleCopy = (text) => {
@@ -74,6 +74,8 @@ export default function Features({ onTryApp }) {
                                 onClick={() => {
                                     if (c.cta === "Try the app, it's free" && onTryApp) {
                                         onTryApp();
+                                    } else if (c.cta === "Join the IDE waitlist" && onOpenWaitlist) {
+                                        onOpenWaitlist();
                                     } else if (c.ctaCopy) {
                                         handleCopy(c.cta);
                                     }

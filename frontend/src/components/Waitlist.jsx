@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import './Waitlist.css';
 
-export default function Waitlist({ onTryApp }) {
+export default function Waitlist({ onTryApp, onOpenWaitlist }) {
     return (
         <section className="cta-section" id="waitlist">
             <div className="cta-gradient" />
@@ -32,7 +32,7 @@ export default function Waitlist({ onTryApp }) {
                     <button className="btn-primary" onClick={onTryApp}>
                         Try the app, it's free
                     </button>
-                    <button className="btn-secondary">
+                    <button className="btn-secondary" onClick={onOpenWaitlist}>
                         Join the IDE waitlist
                     </button>
                 </motion.div>

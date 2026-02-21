@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import './Hero.css';
 
-export default function Hero({ onTryClick }) {
+export default function Hero({ onTryClick, onOpenWaitlist }) {
     return (
         <section className="hero" id="top">
             <div className="container hero-content">
@@ -33,7 +33,7 @@ export default function Hero({ onTryClick }) {
                             <path d="M3 5L6 8L9 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     </button>
-                    <button className="btn-secondary">
+                    <button className="btn-secondary" onClick={onOpenWaitlist}>
                         Join the IDE waitlist
                     </button>
                 </motion.div>
