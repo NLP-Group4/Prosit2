@@ -72,43 +72,51 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
 
             <Navbar onLoginClick={onOpenLogin} theme={theme} onThemeToggle={onThemeToggle} />
 
-            <main style={{ flex: 1, padding: '120px 20px', maxWidth: '1000px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 1 }}>
-                <header style={{ textAlign: 'center', marginBottom: '80px' }}>
-                    <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: '700', letterSpacing: '-0.03em', marginBottom: '20px' }}>
+            <main style={{ flex: 1, padding: '120px 20px', maxWidth: '1200px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 1 }}>
+                <header style={{ textAlign: 'center', marginBottom: '100px' }}>
+                    <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3.2rem)', fontWeight: '700', letterSpacing: '-0.03em', marginBottom: '20px' }}>
                         About Interius
                     </h1>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.2rem', maxWidth: '750px', margin: '0 auto', lineHeight: '1.6' }}>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', maxWidth: '750px', margin: '0 auto', lineHeight: '1.6' }}>
                         We are an African AI technology startup founded by four engineers and researchers from Ashesi University, dedicated to building autonomous infrastructure to orchestrate, accelerate, and redefine software development.
                     </p>
                 </header>
 
-                {/* Creative Split Section for Non-Developer API Platform */}
+                {/* Creative Side-by-Side Section for Non-Developer API Platform */}
                 <section style={{
                     display: 'flex',
+                    flexDirection: 'row',
                     alignItems: 'center',
+                    justifyContent: 'space-between',
                     gap: '60px',
-                    marginBottom: '100px',
-                    flexDirection: 'row'
-                }} className="about-split-section">
-                    <div style={{ flex: 1 }}>
-                        <h2 style={{ fontSize: '2.2rem', fontWeight: '700', letterSpacing: '-0.02em', marginBottom: '20px', lineHeight: '1.2' }}>
+                    marginBottom: '140px',
+                    width: '100%'
+                }}>
+                    <div style={{ flex: 1, maxWidth: '500px' }}>
+                        <h2 style={{ fontSize: '2rem', fontWeight: '700', letterSpacing: '-0.02em', marginBottom: '24px', lineHeight: '1.2' }}>
                             Building a Non-Developer Friendly API Development Platform
                         </h2>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '1.15rem', lineHeight: '1.6', marginBottom: '24px' }}>
-                            Interius abstracts away the complexities of backend engineering. You don’t need to write boilerplate code or configure intricate database schemas manually. Simply describe your data models and endpoints in plain English, and our autonomous multi-agent architecture instantly provisions, deploys, and scales your robust API infrastructure.
-                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: '1.6', margin: 0 }}>
+                                Interius abstracts away the complexities of backend engineering. You don’t need to write boilerplate code or configure intricate database schemas manually.
+                            </p>
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', lineHeight: '1.6', margin: 0 }}>
+                                Simply describe your data models and endpoints in plain English using natural language, and our autonomous multi-agent architecture instantly provisions, deploys, and scales your robust API infrastructure.
+                            </p>
+                        </div>
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
                         <div style={{
                             position: 'relative',
                             width: '100%',
+                            maxWidth: '600px',
+                            minHeight: '400px',
                             background: 'var(--bg-secondary)',
                             borderRadius: '24px',
                             border: '1px solid var(--border-subtle)',
                             boxShadow: 'var(--shadow-xl), 0 20px 40px -10px rgba(56, 189, 248, 0.1)',
                             overflow: 'hidden',
-                            aspectRatio: '1',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -147,7 +155,7 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                             />
 
                             {/* Abstract Interface / Visualization */}
-                            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '20px', width: '85%' }}>
+                            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '24px', width: '90%', margin: '60px 0' }}>
                                 {/* Mock Chat Input */}
                                 <motion.div
                                     initial={{ y: 20, opacity: 0 }}
@@ -204,13 +212,13 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                     </div>
                 </section>
 
-                <section>
-                    <h2 style={{ fontSize: '2rem', fontWeight: '600', marginBottom: '40px', textAlign: 'center' }}>Meet the Team</h2>
+                <section style={{ maxWidth: '1000px', margin: '0 auto' }}>
+                    <h2 style={{ fontSize: '2rem', fontWeight: '600', letterSpacing: '-0.02em', marginBottom: '50px', textAlign: 'center' }}>Meet the Team</h2>
 
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(4, 1fr)',
-                        gap: '20px'
+                        gap: '24px'
                     }}>
                         {TEAM.map((member, idx) => (
                             <div key={idx} style={{ textAlign: 'center' }}>
@@ -220,7 +228,7 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                                     margin: '0 auto 20px',
                                     borderRadius: '50%',
                                     overflow: 'hidden',
-                                    border: '4px solid var(--bg-secondary)',
+                                    border: '3px solid var(--bg-secondary)',
                                     boxShadow: 'var(--shadow-md)',
                                     background: 'var(--border-subtle)'
                                 }}>
@@ -235,10 +243,73 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                                     />
                                 </div>
                                 <h3 style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '4px' }}>{member.name}</h3>
-                                <div style={{ color: 'var(--accent-green)', fontSize: '0.85rem', fontWeight: '500', marginBottom: '12px' }}>{member.role}</div>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.4' }}>
+                                <div style={{ color: 'var(--accent-green)', fontSize: '0.9rem', fontWeight: '500', marginBottom: '12px' }}>{member.role}</div>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5' }}>
                                     {member.bio}
                                 </p>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                <div style={{ width: '100%', height: '1px', background: 'var(--border-subtle)', margin: '120px 0' }} />
+
+                <section style={{ marginBottom: '120px', maxWidth: '1000px', margin: '0 auto 120px' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '50px' }}>
+                        <h2 style={{ fontSize: '1.8rem', fontWeight: '600', letterSpacing: '-0.02em', marginBottom: '16px', color: 'var(--text-primary)' }}>Featured roles</h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
+                            We are actively seeking talented individuals to join our team. Explore featured roles or view all open roles.
+                        </p>
+                        <button style={{
+                            marginTop: '24px',
+                            padding: '8px 20px',
+                            borderRadius: '20px',
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border-subtle)',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.9rem',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'background 0.2s'
+                        }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--border-subtle)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                        >
+                            View all careers
+                        </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        {[
+                            { title: "Research Intern, Agents", department: "Research", location: "Remote" },
+                            { title: "Research Intern, Foundations", department: "Research", location: "Remote" },
+                            { title: "Security Engineer", department: "Engineering", location: "Accra, Ghana" },
+                            { title: "Security Researcher", department: "Research", location: "Accra, Ghana" },
+                            { title: "Backend Engineer, Interius IDE", department: "Engineering", location: "Berekuso (Hybrid)" },
+                        ].map((role, idx) => (
+                            <div key={idx} style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '24px 0',
+                                borderBottom: '1px solid var(--border-subtle)',
+                                borderTop: idx === 0 ? '1px solid var(--border-subtle)' : 'none',
+                                cursor: 'pointer',
+                                transition: 'border-color 0.2s',
+                            }}
+                                onMouseEnter={e => e.currentTarget.style.borderBottomColor = 'var(--text-primary)'}
+                                onMouseLeave={e => e.currentTarget.style.borderBottomColor = 'var(--border-subtle)'}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <span style={{ fontSize: '0.9rem', fontWeight: '500', color: 'var(--text-primary)' }}>{role.title}</span>
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', opacity: 0.6 }}>{role.department}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '32px' }}>
+                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{role.location}</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--text-primary)' }}>
+                                        Apply now <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17l9.2-9.2M17 17V7H7" /></svg>
+                                    </span>
+                                </div>
                             </div>
                         ))}
                     </div>
