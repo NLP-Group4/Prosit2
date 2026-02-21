@@ -26,8 +26,17 @@ export default function ResearchPostPage({ onOpenLogin, theme, onThemeToggle }) 
             <main style={{ flex: 1, padding: '120px 20px', maxWidth: '900px', margin: '0 auto', width: '100%' }}>
                 <article>
                     <header style={{ textAlign: 'center', marginBottom: '40px', maxWidth: '750px', margin: '0 auto' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '24px', letterSpacing: '0.01em' }}>
-                            {post.date} &nbsp;&nbsp; <span style={{ opacity: 0.4, fontWeight: '400', color: 'var(--text-secondary)' }}>Publication</span> &nbsp;&nbsp; <span style={{ opacity: 0.4, fontWeight: '400', color: 'var(--text-secondary)' }}>Research</span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '24px', letterSpacing: '0.01em', display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                            <span>{post.date}</span>
+                            <span style={{ opacity: 0.3 }}>•</span>
+                            <span style={{ opacity: 0.6, fontWeight: '400', color: 'var(--text-secondary)' }}>Prosit Technical Report</span>
+                            <span style={{ opacity: 0.3 }}>•</span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: 'var(--text-primary)' }}>
+                                    {post.author.charAt(0)}
+                                </div>
+                                {post.author}
+                            </span>
                         </div>
 
                         <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 3.5rem)', fontWeight: '600', letterSpacing: '-0.03em', lineHeight: '1.1', marginBottom: '24px', color: 'var(--text-primary)' }}>
