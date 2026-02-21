@@ -555,7 +555,7 @@
     display: flex;
     flex-direction: column;
     gap: 60px;
-    padding: 32px;
+    padding: 32px 32px 120px 32px;
     max-width: 900px;
     width: 100%;
     margin: 0 auto;
@@ -809,7 +809,7 @@
    INPUT BAR
 ══════════════════════════════════════════════ */
 .cp-input-bar {
-    padding: 12px 20px 48px;
+    padding: 36px 20px 48px;
     border-top: 1px solid var(--border-subtle);
     background: var(--bg-primary);
 }
@@ -1661,27 +1661,30 @@
     align-items: center;
     gap: 6px;
     align-self: flex-end;
-    padding: 7px 14px;
+    padding: 8px 16px;
     border-radius: 8px;
-    font-size: 12.5px;
-    font-weight: 500;
-    color: var(--ide-btn-color);
-    border: 1px solid var(--ide-btn-bd);
-    background: transparent;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    background: var(--bg-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transition: all var(--transition-fast);
-    cursor: default;
-}
-
-.cp-suggest-btn.active {
-    color: var(--ide-btn-active);
-    border-color: var(--ide-btn-active-bd);
-    background: var(--ide-btn-active-bg);
     cursor: pointer;
 }
 
+.cp-suggest-btn.active {
+    color: #ffffff;
+    border-color: var(--accent);
+    background: var(--accent);
+    cursor: pointer;
+    font-weight: 600;
+}
+
 .cp-suggest-btn.active:hover {
-    background: var(--ide-btn-active-bg);
-    filter: brightness(1.15);
+    background: var(--accent-hover, #2563eb);
+    border-color: var(--accent-hover, #2563eb);
+    box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 /* @ file-mention popup inside suggest-edits */

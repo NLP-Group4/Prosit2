@@ -800,9 +800,6 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 <div className="cp-file-viewer">
                                     <div className="cp-ide-toolbar">
                                         <span className="cp-ide-filename">{previewFile}</span>
-                                        <div className="cp-ide-dots">
-                                            <span /><span /><span />
-                                        </div>
                                     </div>
                                     <div className="cp-ide-scroll">
                                         <table className="cp-ide-table">
