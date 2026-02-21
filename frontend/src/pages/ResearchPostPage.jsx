@@ -2,6 +2,11 @@ import { useParams, Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { RESEARCH_POSTS } from './ResearchPage';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 export default function ResearchPostPage({ onOpenLogin, theme, onThemeToggle }) {
     const { id } = useParams();
@@ -23,9 +28,9 @@ export default function ResearchPostPage({ onOpenLogin, theme, onThemeToggle }) 
         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
             <Navbar onLoginClick={onOpenLogin} theme={theme} onThemeToggle={onThemeToggle} />
 
-            <main style={{ flex: 1, padding: '120px 20px', maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+            <main style={{ flex: 1, padding: '120px 20px', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
                 <article>
-                    <header style={{ textAlign: 'center', marginBottom: '40px', maxWidth: '750px', margin: '0 auto' }}>
+                    <header style={{ textAlign: 'center', marginBottom: '60px', maxWidth: '950px', margin: '0 auto' }}>
                         <div style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '24px', letterSpacing: '0.01em', display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '12px' }}>
                             <span>{post.date}</span>
                             <span style={{ opacity: 0.3 }}>•</span>
@@ -97,13 +102,25 @@ export default function ResearchPostPage({ onOpenLogin, theme, onThemeToggle }) 
                         </div>
 
                         <div style={{
-                            fontSize: '1.1rem',
-                            lineHeight: '1.65',
+                            fontSize: '1.15rem',
+                            lineHeight: '1.8',
                             color: 'var(--text-primary)',
-                            whiteSpace: 'pre-wrap', // To respect newlines but allow wrapping
                             fontFamily: 'Inter, system-ui, sans-serif'
                         }}>
-                            {post.content}
+                            <ReactMarkdown
+                                remarkPlugins={[remarkGfm, remarkMath]}
+                                rehypePlugins={[rehypeKatex]}
+                                components={{
+                                    h2: ({ node, ...props }) => <h2 style={{ fontSize: '2.5rem', fontWeight: '700', letterSpacing: '-0.02em', marginTop: '4rem', marginBottom: '1.5rem', color: 'var(--text-primary)', lineHeight: '1.2' }} {...props} />,
+                                    h3: ({ node, ...props }) => <h3 style={{ fontSize: '1.75rem', fontWeight: '600', letterSpacing: '-0.01em', marginTop: '3rem', marginBottom: '1.25rem', color: 'var(--text-primary)' }} {...props} />,
+                                    p: ({ node, ...props }) => <p style={{ marginBottom: '1.75rem', opacity: 0.9 }} {...props} />,
+                                    ul: ({ node, ...props }) => <ul style={{ marginBottom: '1.75rem', paddingLeft: '2rem', opacity: 0.9 }} {...props} />,
+                                    li: ({ node, ...props }) => <li style={{ marginBottom: '0.75rem' }} {...props} />,
+                                    blockquote: ({ node, ...props }) => <blockquote style={{ borderLeft: '4px solid var(--border-subtle)', margin: '2rem 0', padding: '0.5rem 0 0.5rem 1.5rem', fontStyle: 'italic', opacity: 0.8 }} {...props} />,
+                                }}
+                            >
+                                {post.content}
+                            </ReactMarkdown>
                         </div>
                     </div>
                 </article>

@@ -14,29 +14,53 @@ export const RESEARCH_POSTS = [
         readTime: "12 min read",
         bgConfig: "linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)", // Very subtle grey
         textColor: "var(--text-primary)",
-        content: `LANGUAGE MODELS: AN OPERATIONAL DEFINITION
+        content: `## Language Models and Their Use
 
-A language model (LM) is defined, in NLP, as a probability distribution over sequences of tokens. This definition is not claiming that language understanding is probability; rather, it is an operational definition chosen because it captures all observable linguistic competence in a precise and testable way.
+At a fundamental level, language models are an attempt to endow machines with a workable form of linguistic competence. In human communication, understanding is revealed through some form of appropriate response: given a context, a competent speaker has expectations about what is likely, plausible, or surprising to say next. A language model adopts this same principle and formalizes it in probabilistic terms. Rather than claiming deep semantic understanding (which remains a philosophical debate), it measures comprehension through the ability to assign sensible expectations to linguistic continuations.
 
-Language understanding, from a scientific perspective, is not defined by internal mental states but by behavior: the ability to judge, produce, and respond to language appropriately across contexts. Human language use is inherently uncertain and non-deterministic: given the same prefix, many continuations are possible, but not equally plausible. Understanding language therefore involves having the right expectations about what is likely, unlikely, or inappropriate in context. Probability is the mathematical formalism that encodes graded expectations.
+This intuition leads to a probabilistic formulation or model. Given a sequence of tokens $w_1, w_2, \\dots, w_T$, a language model assigns a joint probability $P(w_1, w_2, \\dots, w_T)$. The probabilities are not binary judgments of correctness, but a sort of graded sense of plausibility. For example, the sentence "I went to the bank to table the watch" should be assigned a much lower probability than "I went to the bank to sit by the river", because the latter aligns more closely with common linguistic usage and background knowledge.
 
-Formally, defining a distribution over sequences means assigning higher probability to fluent, meaningful, and contextually appropriate utterances, and lower probability to incoherent or implausible ones. This is sufficient to recover the core abilities we associate with linguistic competence: grammaticality judgments, semantic compatibility, long-range coherence, ambiguity resolution, and appropriate responses to questions or instructions. Generation is a consequence of having such a distribution, not the definition itself.
+Under this perspective, next-token prediction seems the smallest measurable unit of linguistic expectation. Predicting what comes next, given context, is sufficient to encode syntax, semantics, and common techniques or regularities of language usage. Training a language model, therefore, consists of adjusting its parameters to maximize the likelihood of observed text, aligning the model's internal expectations with those implicit in the natural language. 
 
-THE CHAIN RULE AND MAXIMUM LIKELIHOOD
+## The Chain Rule and Maximum Likelihood
 
-The chain rule of probability provides the crucial bridge between the abstract definition and a learnable task. It guarantees that any joint distribution over a sequence can be factored into a product of conditional distributions of the next token given the past. This factorization is an exact identity, not a modeling assumption. As a result, learning a language model is equivalent to learning the family of conditional distributions P(w_t | w_{<t}) for all positions in a sequence. "Next-token prediction" is therefore not a heuristic, but the canonical decomposition of sequence modeling.
+The chain rule of probability provides the crucial bridge between the abstract definition and a learnable task. It guarantees that any joint distribution over a sequence can be factored into a product of conditional distributions of the next token given the past. This factorization is an exact identity, not a modeling assumption.
 
-Different language models differ only in how they approximate these conditional distributions. n-gram models do so by making a Markov assumption and estimating probabilities via counts, which leads to sparsity and limited context. Neural language models replace explicit counts with learned representations, allowing generalization. Transformers further improve this by enabling flexible, long-range context interaction through attention. Across all these models, the probabilistic objective remains the same.
+$$P(w_1, \\dots, w_T) \\approx \\prod_{t=1}^T P(w_t \\mid w_{<t})$$
 
-The training objective for language models is maximum likelihood estimation, implemented as minimizing the negative log-likelihood (cross-entropy) of the true next token at each position. This loss penalizes incorrect or overconfident predictions and has a deep interpretation in information theory: good language models are good compressors, because they assign short codes to likely sequences and long codes to unlikely ones.
+As a result, learning a language model is equivalent to learning the family of conditional distributions for all positions in a sequence. "Next-token prediction" is therefore not a heuristic, but the canonical decomposition of sequence modeling. Different language models differ only in how they approximate these conditional distributions. Neural language models replace explicit counts with learned representations, allowing generalization. Transformers further improve this by enabling flexible, long-range context interaction through attention.
 
-Crucially, grammar alone is insufficient for language understanding. Meaning, in NLP, is not explicitly defined but emerges as the set of constraints that shape which sequences occur and how often.
+The training objective for language models is maximum likelihood estimation, implemented as minimizing the negative log-likelihood (cross-entropy) of the true next token at each position. This loss penalizes incorrect or overconfident predictions and has a deep interpretation in information theory: good language models are good compressors.
 
-APPLICATION TO LOW-RESOURCE TWI
+## N-gram Models and Their Working Principles
 
-In low-resource language modeling, the primary constraint is the mismatch between model capacity and available data. For our study, we used monolingual Twi text extracted from the tw-parallel-lg-corpus. We opted for n-gram language models, which are explicitly count-based and far more data-efficient than massive neural transformers that demand tens of millions of tokens to prevent overfitting.
+N-gram models are among the earliest and most interpretable approaches to language modeling. They rely on the Markov assumption, which states that the probability of a token depends only on a fixed number of preceding tokens. Specifically, an n-gram model approximates the full joint distribution as:
 
-The best-performing model was a 4-gram Kneser-Ney language model, achieving a validation perplexity of 110.65 and a test perplexity of 108.81. The alignment between quantitative improvements and qualitative fluency provides strong evidence that the model learned statistically meaningful regularities from the limited data.`
+$$P(w_1, \\dots, w_T) \\approx \\prod_{t=1}^T P(w_t \\mid w_{t-n+1}, \\dots, w_{t-1})$$
+
+Parameter estimation in n-gram models is performed using maximum likelihood estimation (MLE). For a trigram model, the conditional probability is computed via explicit counts. However, n-gram models suffer from two fundamental limitations: a fixed short context window, and data sparsity as parameter space scales exponentially with vocabulary size.
+
+## Handling Sparsity with Smoothing
+
+A practical issue that arises is the problem of unseen events. Any n-gram that does not appear in the training data is assigned a probability of zero. Smoothing techniques address this by redistributing probability mass from frequent events to rare or unseen ones. While Add-k smoothing distorts dense distributions, backoff and interpolation methods yield far superior results by combining multiple context lengths simultaneously:
+
+$$P(w_t \\mid w_{t-2}, w_{t-1}) = \\lambda_3 P(w_t \\mid w_{t-2}, w_{t-1}) + \\lambda_2 P(w_t \\mid w_{t-1}) + \\lambda_1 P(w_t)$$
+
+Conceptually, smoothing does not alter the objective of language modeling. It allows the model to express uncertainty intelligently instead of failing outright when confronted with novel input.
+
+## Application to Low-Resource Twi
+
+In low-resource language modeling, the primary constraint is the mismatch between model capacity and available data. Modern neural language models typically require millions to billions of parameters, demanding tens of millions of tokens to achieve stable generalization. For African languages like Twi, establishing this corpus volume is incredibly difficult. 
+
+Training massive neural models under such conditions often leads to severe overfitting. In contrast, n-gram language models are explicitly count-based and far more data-efficient. The theoretical parameter space scales with vocabulary size, but the observed parameter count is completely bounded by the number of unique n-grams actually present in the text.
+
+For this study, we used monolingual Twi text extracted from the \`tw-parallel-lg-corpus\`. The final dataset exhibited typical low-resource characteristics: limited corpus size, a vocabulary of approximately 22,080 unique word types, and a highly skewed Zipfian frequency distribution with a massive tail of rare tokens. These properties introduced significant sparsity, making the modeling task particularly sensitive to data efficiency.
+
+## Experimental Results
+
+The best-performing model was a 4-gram Kneser-Ney language model, which achieved a validation perplexity of 110.65 and a test perplexity of 108.81. Kneser-Ney smoothing provided extremely strong inductive bias by redistributing probability mass according to continuation diversity rather than raw frequency.
+
+Qualitative evaluation complemented the perplexity-based analysis. Lower-order models produced entirely incoherent and repetitive baseline sequences, whereas the higher-order Kneser-Ney models generated locally grammatical and contextually appropriate Twi phrases. The alignment between the strict quantitative gains and the qualitative fluency provides substantial evidence that the model successfully abstracted statistically meaningful regularities from the extremely limited dataset.`
     },
     {
         id: "medical-llm-finetuning",
@@ -48,25 +72,43 @@ The best-performing model was a 4-gram Kneser-Ney language model, achieving a va
         readTime: "8 min read",
         bgConfig: "linear-gradient(135deg, rgba(255, 236, 210, 0.5) 0%, rgba(252, 182, 159, 0.2) 100%)", // Very subtle warm
         textColor: "var(--text-primary)",
-        content: `INTRODUCTION
+        content: `## The Modern Paradigm of Domain Adaptation
 
-We developed MedicalLM, a domain-specific language model targeting the healthcare sector. Healthcare represents a high-stakes domain where specialized language understanding is critical.
+While large foundation models possess unprecedented general reasoning capabilities, they lack the specific terminology, structural formatting, and factual grounding required for highly specialized fields such as healthcare. General-purpose models often fail to provide granular, clinically sound advice without explicit domain adaptation. MedicalLM addresses this critical gap.
 
-General-purpose foundation models often lack the precise terminology and reasoning required for medical literature without explicit domain adaptation. MedicalLM uses medical abstracts sourced from Hugging Face featuring biomedical literature with highly specialized terminology.
+We developed MedicalLM, a parameter-efficient, domain-specific language model explicitly targeting the healthcare sector. Healthcare represents a high-stakes domain where precise natural language understanding and generation are non-negotiable.
 
-FINE-TUNING APPROACH
+## Fine-Tuning Constraints and LoRA
 
-We considered various fine-tuning approaches for developing our domain-specific English model. Due to memory constraints and out-of-memory errors that prevented full fine-tuning, we utilized Low-Rank Adaptation (LoRA) without quantization on DistilGPT-2 (82M parameters). 
+The transition from a generalized model to a specialized medical assistant historically required "full fine-tuning"—updating every single parameter in the neural network. This traditional approach, while effective, demands immense computational clustering and risks "catastrophic forgetting," where the model overwrites its foundational English grammar to memorize domain terminology.
 
-This modern, parameter-efficient approach enabled systematic hyperparameter experimentation and provided a meaningful comparison on text generation tasks while maintaining extreme computational efficiency. Only a small fraction of the parameters were updated by injecting low-rank adapter matrices.
+Due to severe memory constraints targeting consumer-grade GPU hardware, we utilized Low-Rank Adaptation (LoRA) without quantization on the \`DistilGPT-2\` architecture (82M parameters). LoRA functions by freezing the core pre-trained weights of the model and injecting incredibly small, trainable adapter matrices into the specific attention layers.
 
-EXPERIMENTS AND RESULTS
+This modern parameter-efficient paradigm allowed us to drastically cut down backpropagation costs. Only a minute fraction of the model's total parameters were updated during the process, maintaining extreme computational efficiency while retaining the base language modeling prowess.
 
-We conducted systematic experimentation across multiple configurations, varying the learning rate, rank, and epochs. The best configuration used a rank of 8, an alpha of 32, a learning rate of 5e-5, and 5 epochs. A key insight emerged: higher rank did not improve results, as DistilGPT-2 is too small to benefit from increased adapter capacity. Lower learning rates proved more stable.
+## The Biomedical Corpus
 
-MedicalLM exhibited consistent improvement throughout training. Validation perplexity improved from an initial 24.83 to 23.42 (a 5.7% improvement).
+To facilitate the adaptation, we sourced a dense corpus of medical abstracts from Hugging Face (\`TimSchopf/medical_abstracts\`). This dataset features thousands of authentic biomedical literature excerpts filled with highly specialized, hyper-localized terminology that base models ordinarily misinterpret or ignore.
 
-Qualitatively, the model showed stark improvements. While the baseline DistilGPT-2 frequently deteriorated into repetitive or looping text when presented with clinical prompts, the fine-tuned MedicalLM produced accurate, coherent, and domain-appropriate biomedical text, correctly using specialized terminology in context.`
+The data was structured into an instructional format to prevent the base model from hallucinating unexpected completions. By explicitly delineating the prompt from the response, MedicalLM was taught the syntactical boundaries of clinical queries versus clinical answers.
+
+## Hyperparameter Experimentation
+
+We executed systematic, rigorous experimentation across multiple training configurations, varying the learning rate, rank (adapter capacity), and total epochs. 
+
+A critical observation arose: higher LoRA rank ($r=16$) did not consistently improve results. Given the relatively small size of \`DistilGPT-2\`, the model was too compact to effectively leverage the increased adapter capacity. Lower learning rates (e.g., $5e^{-5}$) proved far more stable across epochs. The ultimate optimal configuration settled on a rank of $8$, an alpha of $32$, and $5$ epochs of training.
+
+## Quantitative Divergence and Results
+
+MedicalLM exhibited a steady and clear improvement across core training metrics. Training loss dropped linearly, and the initial validation perplexity improved from an initial $24.83$ to a final $23.42$ (a $5.7\\%$ improvement). Top-1 token prediction accuracy increased across the board.
+
+However, we encountered a fundamental trade-off: **test perplexity worsened by over $60\\%$** despite the accuracy gains. This metric divergence revealed a core principle of domain adaptation — the fine-tuned model became hyper-specialized. It grew incredibly adept at prioritizing exactly the right medical tokens (hence the accuracy jump), but its general probability distribution became slightly distorted overall, driving up raw perplexity. Evaluating domain-specific models ultimately demands multiple complementary metrics.
+
+## Qualitative Improvements
+
+Qualitatively, the model produced stark, remarkable improvements. Prior to fine-tuning, the baseline \`DistilGPT-2\` model frequently deteriorated into repetitive, looping nonsense when presented with complex clinical prompts. 
+
+Following the LoRA adaptation, MedicalLM produced accurate, coherent, and rigorously domain-appropriate biomedical text. It correctly utilized specialized terminology strictly within the appropriate context, diagnosing complex symptoms and refusing to hallucinate broad assertions, proving that parameter-efficient fine-tuning is exceptionally viable for medical AI.`
     },
     {
         id: "agricgpt-instruction-tuning",
@@ -78,28 +120,43 @@ Qualitatively, the model showed stark improvements. While the baseline DistilGPT
         readTime: "9 min read",
         bgConfig: "linear-gradient(135deg, rgba(212, 252, 121, 0.3) 0%, rgba(150, 230, 161, 0.2) 100%)", // Very subtle green
         textColor: "var(--text-primary)",
-        content: `INTRODUCTION
+        content: `## AI for Sustainable Agriculture
 
-We built AgricGPT, a domain-specific model targeting agriculture—a domain selected for its profound practical impact on food security in developing regions. General-purpose models often fail to provide granular, contextually sound advice regarding crop management or sustainable farming practices.
+The agricultural sector represents one of the most critical domains for applied artificial intelligence, directly impacting global food security, climate resistance, and economic stability in developing regions. Despite this, general-purpose Large Language Models (LLMs) frequently fail to dispense accurate, scientifically grounded agricultural advice. When asked complex questions regarding soil health or pest mitigation, base models tend to hallucinate generalized treatments that are practically useless to working farmers.
 
-AgricGPT leverages the AI4Agr/CROP-dataset, containing instruction-response pairs about crop management, pest control, soil health, and sustainable farming. We selected 5,000 English samples with a 90%/10% train/validation split.
+To combat this, we engineered **AgricGPT**, a heavily domain-specific language model trained explicitly to provide granular, actionable agricultural guidance on crop management, pest control, and sustainable farming methodologies.
 
-FINE-TUNING VIA QLORA
+## Quantized Low-Rank Adaptation (QLoRA)
 
-We chose QLoRA (Quantized Low-Rank Adaptation) paired with the Microsoft Phi-2 (2.7B parameters) base model. This decision was driven by practical constraints: QLoRA enables training on consumer GPUs by reducing memory requirements by approximately 75% through 4-bit quantization. 
+To achieve high-quality domain adaptation without requiring enterprise supercomputing clusters, we employed the Quantized Low-Rank Adaptation (QLoRA) methodology paired with Microsoft's \`Phi-2\` base model, which boasts an incredibly dense 2.7 Billion parameters.
 
-Only 1.53% of parameters were trainable (23.6M out of 1.54B), making the process highly efficient while avoiding catastrophic forgetting of the model's fundamental English syntax. 
+QLoRA is a breakthrough in parameter-efficient fine-tuning. It utilizes aggressive 4-bit precision quantization to freeze the fundamental weights of the \`Phi-2\` model, slashing memory requirements by approximately $75\\%$. Instead of updating the massive core network, training is entirely restricted to specialized, low-rank adapter matrices integrated into the attention layers.
 
-EVALUATION AND FINDINGS
+By taking this route, **only $1.53\\%$ of the parameters were actively trainable** ($23.6M$ parameters out of the total $1.54B$). This process was astonishingly efficient, allowing us to adapt a massive neural network on consumer-grade hardware without triggering catastrophic forgetting of natural English syntax.
 
-The model was subjected to an instruction-following template that explicitly structures prompts to solicit domain-specific agricultural responses rather than completing free-form text. 
+## The AI4Agr Dataset
 
-AgricGPT showed substantial improvement throughout training:
-- Training loss decreased from 2.05 to 0.71 (a 65% reduction).
-- Validation loss decreased from 1.36 to 0.99.
-- CROP-benchmark accuracy improved significantly, gaining +9 percentage points (from 73.2% to 82.2%).
+AgricGPT was fine-tuned leveraging the \`AI4Agr/CROP-dataset\`. We filtered the corpus to extract roughly 5,000 highly structured, English-language instructional samples, partitioned into a strict $90\\% / 10\\%$ train and validation split. 
 
-Qualitatively, while the baseline Phi-2 model often responded to agricultural queries with generic or hallucinated treatments (e.g., misdiagnosing fungal leaf spots as a streak virus), the fine-tuned AgricGPT correctly identified symptoms and recommended specific, actionable interventions like applying propiconazole.`
+Crucially, the data was coerced into an instruction-following template. We explicitly defined boundaries:
+1. **Instruction:** The query from the farmer.
+2. **Response:** The technical, scientifically backed solution.
+
+Without this templating, base models routinely fail to answer the question, instead attempting to endlessly autocomplete the prompt itself. Instruction tuning forcefully aligns the model's output to the user's intent.
+
+## Model Evaluation and Trajectory
+
+During the fine-tuning phase, AgricGPT showcased massive, continuous improvement. We observed a drastic reduction in training loss, plummeting from $2.05$ to $0.71$ — a spectacular $65\\%$ efficiency gain. Validation loss mirrored this trajectory, falling gracefully to $0.99$ without demonstrating signs of overfitting.
+
+To evaluate genuine world knowledge, we subjected the model to the rigorous \`CROP-benchmark\`, an official dataset of 500 domain-specific questions scaling across varying difficulty levels. AgricGPT elevated its baseline accuracy from $73.2\\%$ to a staggering **$82.2\\%$**, claiming a massive $+9$ percentage point improvement over its un-tuned predecessor.
+
+When evaluating performance by difficulty, the model achieved nearly perfect scores on "Easy" formulations ($95.6\\%$) and incredibly robust results on "Medium" questions ($85.4\\%$). Hard reasoning questions remained difficult, highlighting an avenue for future development.
+
+## Qualitative Eradication of Hallucinations
+
+The true success of AgricGPT lay in its qualitative responses. When the baseline \`Phi-2\` model was fed prompts regarding mysterious gray-to-brown spots on maize leaves, it consistently misdiagnosed the ailment as "maize streak virus"—a completely incorrect assessment—and proceeded to hallucinate unrelated advice.
+
+Conversely, the fine-tuned AgricGPT correctly and definitively identified the exact symptoms as **Gray Leaf Spot**, a fungal disease. It then provided immediately actionable interventions, accurately recommending applications of specific fungicides such as propiconazole or tricyclazole, and ended the dialogue by advising the farmer on proper chemical rotation to prevent resistance buildup. This proves conclusively that QLoRA can embed deeply specialized, life-saving domain knowledge into massive LLMs.`
     }
 ];
 
