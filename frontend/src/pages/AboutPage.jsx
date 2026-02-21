@@ -7,7 +7,7 @@ const TEAM = [
         name: "Nicole N. Nanka-Bruce",
         role: "Research Engineer",
         image: "/team/nicole.png",
-        bio: "Specializes in multiagent orchestration."
+        bio: "Specializes in multiagent orchestration and post-training."
     },
     {
         name: "Joseph A. Ajegetina",
@@ -258,25 +258,8 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                     <div style={{ textAlign: 'center', marginBottom: '50px' }}>
                         <h2 style={{ fontSize: '1.8rem', fontWeight: '600', letterSpacing: '-0.02em', marginBottom: '16px', color: 'var(--text-primary)' }}>Featured roles</h2>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '600px', margin: '0 auto', lineHeight: '1.6' }}>
-                            We are actively seeking talented individuals to join our team. Explore featured roles or view all open roles.
+                            We are actively seeking talented individuals to join our team. Explore featured roles below.
                         </p>
-                        <button style={{
-                            marginTop: '24px',
-                            padding: '8px 20px',
-                            borderRadius: '20px',
-                            background: 'var(--bg-secondary)',
-                            border: '1px solid var(--border-subtle)',
-                            color: 'var(--text-primary)',
-                            fontSize: '0.9rem',
-                            fontWeight: '500',
-                            cursor: 'pointer',
-                            transition: 'background 0.2s'
-                        }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--border-subtle)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                        >
-                            View all careers
-                        </button>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
