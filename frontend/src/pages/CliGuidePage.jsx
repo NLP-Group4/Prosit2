@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -9,6 +9,9 @@ export default function CliGuidePage({ onOpenLogin, theme, onThemeToggle }) {
         target: containerRef,
         offset: ["start end", "center center"]
     });
+
+    const [inputText, setInputText] = useState('');
+    const [showResponse, setShowResponse] = useState(false);
 
     // 3D rotations based on scroll
     // Starts tipped back by 40 degrees, and flat when in center
@@ -71,7 +74,7 @@ export default function CliGuidePage({ onOpenLogin, theme, onThemeToggle }) {
                             <div style={{ width: 12, height: 12, borderRadius: '50%', background: '#10b981' }} />
                             <span style={{ marginLeft: 'auto', fontSize: '12px', color: 'rgba(255,255,255,0.4)', fontFamily: 'var(--font-mono)' }}>bash - ~/projects/myapp</span>
                         </div>
-                        <div style={{ padding: '40px', flex: 1, color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(12px, 1.2vw, 16px)', fontFamily: 'var(--font-mono)', lineHeight: '1.8' }}>
+                        <div style={{ padding: '40px', flex: 1, color: 'rgba(255,255,255,0.85)', fontSize: 'clamp(12px, 1.2vw, 16px)', fontFamily: 'var(--font-mono)', lineHeight: '1.8', overflowY: 'auto' }}>
                             <div style={{ display: 'flex', gap: '16px' }}><span style={{ color: '#10b981' }}>$</span> <span>npm i -g @interius/cli</span></div>
                             <div style={{ color: 'rgba(255,255,255,0.4)' }}>+ @interius/cli@1.2.0</div>
                             <div style={{ color: 'rgba(255,255,255,0.4)', marginBottom: '24px' }}>added 42 packages in 2s</div>
@@ -115,12 +118,52 @@ export default function CliGuidePage({ onOpenLogin, theme, onThemeToggle }) {
                                 </div>
                                 <div style={{ marginTop: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
                                     <span style={{ color: '#10b981', fontWeight: 600 }}>&gt;&gt;</span>
-                                    <motion.span
-                                        animate={{ opacity: [1, 0] }}
-                                        transition={{ repeat: Infinity, duration: 1 }}
-                                        style={{ width: '8px', height: '16px', background: '#10b981', display: 'inline-block' }}
-                                    />
+                                    <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                                        {inputText.length === 0 && (
+                                            <motion.span
+                                                animate={{ opacity: [1, 0] }}
+                                                transition={{ repeat: Infinity, duration: 1 }}
+                                                style={{ position: 'absolute', left: 0, width: '8px', height: '16px', background: '#10b981', display: 'inline-block', pointerEvents: 'none' }}
+                                            />
+                                        )}
+                                        <input
+                                            type="text"
+                                            value={inputText}
+                                            onChange={(e) => setInputText(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && inputText.trim()) {
+                                                    setShowResponse(true);
+                                                }
+                                            }}
+                                            placeholder=""
+                                            style={{
+                                                width: '100%',
+                                                background: 'transparent',
+                                                border: 'none',
+                                                outline: 'none',
+                                                color: '#ffffff',
+                                                fontFamily: 'var(--font-mono)',
+                                                fontSize: 'inherit',
+                                                padding: 0
+                                            }}
+                                            spellCheck="false"
+                                            autoComplete="off"
+                                        />
+                                    </div>
                                 </div>
+                                {showResponse && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        style={{ marginTop: '16px', padding: '16px', background: 'rgba(56, 189, 248, 0.1)', borderRadius: '8px', border: '1px solid rgba(56, 189, 248, 0.3)' }}
+                                    >
+                                        <div style={{ color: '#38bdf8', marginBottom: '8px', fontWeight: 600 }}>Ready to get started?</div>
+                                        <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '14px', marginBottom: '12px' }}>Copy and paste this command in your actual terminal to install the Interius CLI and authenticate:</div>
+                                        <div style={{ padding: '12px', background: '#0f172a', borderRadius: '6px', fontFamily: 'var(--font-mono)', fontSize: '13px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                            <span style={{ color: '#10b981' }}>npm i -g @interius/cli && interius login</span>
+                                        </div>
+                                    </motion.div>
+                                )}
                             </motion.div>
                         </div>
                     </motion.div>
