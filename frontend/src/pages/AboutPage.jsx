@@ -74,7 +74,7 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
 
             <main style={{ flex: 1, padding: '120px 20px', maxWidth: '1200px', margin: '0 auto', width: '100%', position: 'relative', zIndex: 1 }}>
                 <header style={{ textAlign: 'center', marginBottom: '100px' }}>
-                    <h1 style={{ fontSize: 'clamp(2rem, 4vw, 3.2rem)', fontWeight: '700', letterSpacing: '-0.03em', marginBottom: '20px' }}>
+                    <h1 style={{ fontSize: 'clamp(2.5rem, 5vw, 4rem)', fontWeight: '700', letterSpacing: '-0.03em', marginBottom: '20px' }}>
                         About Interius
                     </h1>
                     <p style={{ color: 'var(--text-secondary)', fontSize: '1.05rem', maxWidth: '750px', margin: '0 auto', lineHeight: '1.6' }}>
@@ -111,7 +111,7 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                             position: 'relative',
                             width: '100%',
                             maxWidth: '600px',
-                            minHeight: '400px',
+                            minHeight: '320px',
                             background: 'var(--bg-secondary)',
                             borderRadius: '24px',
                             border: '1px solid var(--border-subtle)',
@@ -130,8 +130,8 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                                     position: 'absolute',
                                     top: '20%',
                                     left: '10%',
-                                    width: '300px',
-                                    height: '300px',
+                                    width: '240px',
+                                    height: '240px',
                                     background: 'radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, rgba(0,0,0,0) 70%)',
                                     filter: 'blur(40px)',
                                     borderRadius: '50%',
@@ -145,8 +145,8 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                                     position: 'absolute',
                                     bottom: '10%',
                                     right: '10%',
-                                    width: '250px',
-                                    height: '250px',
+                                    width: '200px',
+                                    height: '200px',
                                     background: 'radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0,0,0,0) 70%)',
                                     filter: 'blur(40px)',
                                     borderRadius: '50%',
@@ -155,7 +155,7 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                             />
 
                             {/* Abstract Interface / Visualization */}
-                            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '24px', width: '90%', margin: '60px 0' }}>
+                            <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '20px', width: '90%', margin: '40px 0' }}>
                                 {/* Mock Chat Input */}
                                 <motion.div
                                     initial={{ y: 20, opacity: 0 }}
@@ -165,7 +165,7 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                                         background: 'rgba(255, 255, 255, 0.03)',
                                         backdropFilter: 'blur(10px)',
                                         border: '1px solid var(--border-subtle)',
-                                        padding: '16px 20px',
+                                        padding: '14px 20px',
                                         borderRadius: '16px',
                                         display: 'flex',
                                         alignItems: 'center',
@@ -179,7 +179,7 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                                 </motion.div>
 
                                 {/* Connecting Line */}
-                                <div style={{ height: '30px', borderLeft: '2px dashed var(--border-subtle)', marginLeft: '32px' }} />
+                                <div style={{ height: '24px', borderLeft: '2px dashed var(--border-subtle)', marginLeft: '32px' }} />
 
                                 {/* Mock Endpoint Card */}
                                 <motion.div
@@ -189,7 +189,7 @@ export default function AboutPage({ onOpenLogin, theme, onThemeToggle }) {
                                     style={{
                                         background: 'var(--bg-primary)',
                                         border: '1px solid var(--border-subtle)',
-                                        padding: '24px',
+                                        padding: '20px',
                                         borderRadius: '20px',
                                         boxShadow: 'var(--shadow-lg)'
                                     }}>
