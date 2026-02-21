@@ -1,36 +1,79 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-const STORAGE_KEY = 'interius_user';
-
-function loadUser() {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : null;
-    } catch {
-        return null;
-    }
-}
-
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(loadUser);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-    const login = useCallback(({ email, name }) => {
-        const u = { email, name: name || email.split('@')[0] };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
-        setUser(u);
-        return u;
+    useEffect(() => {
+        const fetchSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session?.user) {
+                setUser({
+                    id: session.user.id,
+                    email: session.user.email,
+                    name: session.user.user_metadata?.name || session.user.email.split('@')[0]
+                });
+            }
+            setLoading(false);
+        };
+        fetchSession();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                setUser({
+                    id: session.user.id,
+                    email: session.user.email,
+                    name: session.user.user_metadata?.name || session.user.email.split('@')[0]
+                });
+            } else {
+                setUser(null);
+            }
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    const logout = useCallback(() => {
-        localStorage.removeItem(STORAGE_KEY);
-        setUser(null);
-    }, []);
+    const signUp = async (email, password, name) => {
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { data: { name } }
+        });
+        if (error) throw error;
+        return data;
+    };
+
+    const signIn = async (email, password) => {
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+        });
+        if (error) throw error;
+        return data;
+    };
+
+    const signInWithOAuth = async (provider) => {
+        const { data, error } = await supabase.auth.signInWithOAuth({
+            provider,
+            options: {
+                redirectTo: window.location.origin + '/chat'
+            }
+        });
+        if (error) throw error;
+        return data;
+    };
+
+    const logout = async () => {
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
+    };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout }}>
-            {children}
+        <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithOAuth, logout }}>
+            {!loading && children}
         </AuthContext.Provider>
     );
 }

@@ -13,29 +13,39 @@ export default function LoginModal({ isOpen, onClose }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const { login } = useAuth();
+    const { signIn, signUp, signInWithOAuth } = useAuth();
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         if (!email || !password) { setError('Please fill in all fields.'); return; }
+        if (mode === 'signup' && !name) { setError('Please provide your name.'); return; }
+
         setLoading(true);
-        // Simulate a brief network call
-        await new Promise((r) => setTimeout(r, 700));
-        login({ email, name: mode === 'signup' ? name : undefined });
-        setLoading(false);
-        onClose();
-        navigate('/chat');
+        try {
+            if (mode === 'signup') {
+                await signUp(email, password, name);
+            } else {
+                await signIn(email, password);
+            }
+            onClose();
+            navigate('/chat');
+        } catch (err) {
+            setError(err.message || 'Authentication failed');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSocial = async (provider) => {
         setLoading(true);
-        await new Promise((r) => setTimeout(r, 500));
-        login({ email: `demo@${provider}.com`, name: `${provider} User` });
-        setLoading(false);
-        onClose();
-        navigate('/chat');
+        try {
+            await signInWithOAuth(provider);
+        } catch (err) {
+            setError(err.message || 'Authentication failed');
+            setLoading(false);
+        }
     };
 
     const reset = () => { setEmail(''); setPassword(''); setName(''); setError(''); setLoading(false); };
@@ -99,7 +109,12 @@ export default function LoginModal({ isOpen, onClose }) {
                                 <label>Password</label>
                                 <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
                             </div>
-                            {error && <p className="login-error">{error}</p>}
+                            {error && (
+                                <div className="login-error">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                                    {error}
+                                </div>
+                            )}
                             <button className="login-submit" type="submit" disabled={loading}>
                                 {loading ? 'Please wait...' : mode === 'login' ? 'Sign in' : 'Create account'}
                             </button>

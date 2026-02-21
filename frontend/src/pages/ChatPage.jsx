@@ -738,7 +738,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                         onClick={() => { setSelectedModel('generalist'); setModelDropdownOpen(false); }}
                                     >
                                         <span className="cp-model-option-name">Interius Generalist v1</span>
-                                        <span className="cp-model-option-desc">Broad backend dev — services, infra, tooling</span>
+                                        <span className="cp-model-option-desc">Broad backend dev services, infra, tooling</span>
                                     </button>
                                 </div>
                             )}
