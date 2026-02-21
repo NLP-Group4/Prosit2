@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
 import './Navbar.css';
 
@@ -20,9 +21,9 @@ export default function Navbar({ onLoginClick, theme, onThemeToggle }) {
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
       <div className="navbar-inner">
-        <a href="#" className="navbar-logo">
+        <Link to="/" className="navbar-logo">
           Interius<span className="logo-period">.</span>
-        </a>
+        </Link>
         <div className="navbar-actions">
           <ThemeToggle theme={theme} onToggle={onThemeToggle} />
           <button className="navbar-login" onClick={onLoginClick}>Log in</button>

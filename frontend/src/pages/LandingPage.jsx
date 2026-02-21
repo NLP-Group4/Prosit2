@@ -4,7 +4,6 @@ import DemoSection from '../components/DemoSection';
 import Features from '../components/Features';
 import Waitlist from '../components/Waitlist';
 import Footer from '../components/Footer';
-import LoginModal from '../components/LoginModal';
 
 export default function LandingPage({ loginOpen, setLoginOpen, theme, onThemeToggle }) {
     return (
@@ -15,7 +14,6 @@ export default function LandingPage({ loginOpen, setLoginOpen, theme, onThemeTog
             <Features onTryApp={() => setLoginOpen(true)} />
             <Waitlist onTryApp={() => setLoginOpen(true)} />
             <Footer />
-            <LoginModal isOpen={loginOpen} onClose={() => setLoginOpen(false)} />
         </>
     );
 }

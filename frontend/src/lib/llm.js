@@ -23,7 +23,7 @@ export async function generateThreadTitle(prompt) {
                 }],
                 generationConfig: {
                     temperature: 0.3,
-                    maxOutputTokens: 10,
+                    maxOutputTokens: 30, // Increased to ensure it completes
                 }
             })
         });
@@ -33,7 +33,13 @@ export async function generateThreadTitle(prompt) {
         }
 
         const data = await response.json();
-        let title = data.candidates[0].content.parts[0].text.trim().toLowerCase().replace(/\s+/g, '-');
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!rawText) {
+            throw new Error('Gemini API returned an empty or invalid response');
+        }
+
+        let title = rawText.trim().toLowerCase().replace(/\s+/g, '-');
 
         // Remove trailing punctuation
         title = title.replace(/[^a-z0-9-]+/g, '');

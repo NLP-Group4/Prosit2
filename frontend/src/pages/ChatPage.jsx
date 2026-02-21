@@ -471,7 +471,17 @@ export default function ChatPage({ theme, onThemeToggle }) {
 
     const handleFileChange = (e) => {
         const files = Array.from(e.target.files);
-        setAttachedFiles(prev => [...prev, ...files]);
+        const MAX_SIZE = 5 * 1024 * 1024; // 5MB limit
+
+        const validFiles = files.filter(f => {
+            if (f.size > MAX_SIZE) {
+                alert(`File "${f.name}" is too large. Maximum size is 5MB.`);
+                return false;
+            }
+            return true;
+        });
+
+        setAttachedFiles(prev => [...prev, ...validFiles]);
         e.target.value = '';
     };
 
@@ -742,7 +752,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
                             </svg>
                         </button>
-                        <input ref={fileInputRef} type="file" multiple className="cp-file-input" onChange={handleFileChange} />
+                        <input ref={fileInputRef} type="file" multiple accept=".txt,.pdf,.md" className="cp-file-input" onChange={handleFileChange} />
 
                         {/* Textarea */}
                         <textarea
