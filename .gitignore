@@ -6,3 +6,23 @@ agents-env/
 *.pyc
 platform.db
 platform_pgdata/
+
+# Frontend
+node_modules/
+dist/
+build/
+.env.*
+!.env.example
+.DS_Store
+
+# npm
+npm-debug.log*
+
+# yarn
+yarn-debug.log*
+yarn-error.log*
+
+# IDE logs
+.idea/
+.vscode/
+*.log
