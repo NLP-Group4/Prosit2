@@ -40,11 +40,39 @@ const SUGGESTIONS = {
     ],
 };
 
-const AGENT_STEPS = [
-    'Reading your request…',
-    'Planning the architecture…',
-    'Generating code…',
-    'Running tests…',
+const AGENT_PHASE_1 = [
+    {
+        id: 'req',
+        text: 'Analyzing requirements…',
+        doneText: 'Requirement analysis done.',
+        sub: [{ label: 'Requirements doc', action: 'file:Requirements Document' }]
+    },
+    {
+        id: 'arch',
+        text: 'Planning architecture…',
+        doneText: 'Architecture designed.',
+        sub: [{ label: 'Architecture diagram', action: 'link:https://app.diagrams.net/' }]
+    }
+];
+
+const AGENT_PHASE_2 = [
+    {
+        id: 'code',
+        text: 'Generating code…',
+        doneText: 'Code generation complete.',
+        sub: [
+            { label: 'Schema models', action: 'file:app/models.py' },
+            { label: 'API endpoints', action: 'file:app/routes.py' },
+            { label: 'Unit tests', action: 'file:tests.py' }
+        ]
+    },
+    {
+        id: 'deploy',
+        text: 'Containerizing application…',
+        doneText: 'Deployed docker container.',
+        icon: 'deploy',
+        sub: [{ label: 'dockerhub', action: 'link:https://hub.docker.com/' }]
+    }
 ];
 
 const AGENT_FINAL = {
@@ -274,12 +302,14 @@ export default function ChatPage({ theme, onThemeToggle }) {
     const [editSuggestion, setEditSuggestion] = useState('');
     const [suggestOpen, setSuggestOpen] = useState(false);
     const [suggestAtMenu, setSuggestAtMenu] = useState(false);
+    const [autoApprove, setAutoApprove] = useState(true);
 
     const modelDropdownRef = useRef(null);
 
     const messagesEndRef = useRef(null);
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
+    const isGeneratingRef = useRef(false);
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isTyping]);
 
@@ -295,7 +325,13 @@ export default function ChatPage({ theme, onThemeToggle }) {
         if (!user) return;
         const fetchThreads = async () => {
             const { data } = await supabase.from('threads').select('*').order('created_at', { ascending: false });
-            if (data) setThreads(data);
+            if (data) {
+                setThreads(data);
+                const saved = localStorage.getItem('interius_active_thread');
+                if (saved && data.some(t => t.id === saved)) {
+                    setActiveThread(saved);
+                }
+            }
         };
         fetchThreads();
     }, [user]);
@@ -306,6 +342,9 @@ export default function ChatPage({ theme, onThemeToggle }) {
             setMessages([]);
             return;
         }
+
+        if (isGeneratingRef.current) return;
+
         const fetchMessages = async () => {
             const { data } = await supabase.from('messages')
                 .select('*')
@@ -320,9 +359,16 @@ export default function ChatPage({ theme, onThemeToggle }) {
                     text: msg.content,
                     files: [] // For simplicity in this demo
                 }));
-                // We add the mock agent final response properties dynamically if it's an agent
+                // We ensure historical completed agent messages always have the deployment block state active
+                // For simplicity in this demo, all agent messages are assumed to have reached phase 2 completion
                 const withMockData = formatted.map(msg =>
-                    msg.type === 'agent' ? { ...msg, showEndpoints: true, files: AGENT_FINAL.files } : msg
+                    msg.type === 'agent' ? {
+                        ...msg,
+                        files: AGENT_FINAL.files,
+                        status: 'completed',
+                        phase: 2,
+                        stepIndex: 99
+                    } : msg
                 );
                 setMessages(withMockData);
             }
@@ -337,7 +383,9 @@ export default function ChatPage({ theme, onThemeToggle }) {
     const handleLogout = () => { logout(); navigate('/'); };
 
     const handleNewThread = () => {
+        isGeneratingRef.current = false;
         setActiveThread(null);
+        localStorage.removeItem('interius_active_thread');
         setMessages([]);
         setInput('');
         setAttachedFiles([]);
@@ -348,7 +396,11 @@ export default function ChatPage({ theme, onThemeToggle }) {
     const handleDeleteThread = async (e, id) => {
         e.stopPropagation();
         setThreads(t => t.filter(x => x.id !== id));
-        if (activeThread === id) { setActiveThread(null); setMessages([]); }
+        if (activeThread === id) {
+            setActiveThread(null);
+            localStorage.removeItem('interius_active_thread');
+            setMessages([]);
+        }
         await supabase.from('threads').delete().eq('id', id);
     };
 
@@ -390,6 +442,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
     const sendMessage = async (text) => {
         if (!text || isTyping || !user) return;
 
+        isGeneratingRef.current = true;
+
         let threadId = activeThread;
 
         // Create new thread if none active
@@ -404,6 +458,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                 threadId = data.id;
                 setThreads(t => [data, ...t]);
                 setActiveThread(threadId);
+                localStorage.setItem('interius_active_thread', threadId);
             } else {
                 console.error("Failed to create thread", error);
                 return;
@@ -414,7 +469,6 @@ export default function ChatPage({ theme, onThemeToggle }) {
         setMessages(m => [...m, { type: 'user', text, files: attachedFiles.map(f => f.name) }]);
         setAttachedFiles([]);
         setIsTyping(true);
-        setTypingStep(0);
 
         // Save user message to DB
         await supabase.from('messages').insert({
@@ -424,28 +478,105 @@ export default function ChatPage({ theme, onThemeToggle }) {
             content: text
         });
 
-        for (let i = 0; i < AGENT_STEPS.length; i++) {
-            await new Promise(r => setTimeout(r, 550));
-            setTypingStep(i + 1);
+        // Initialize agent message in UI
+        const msgId = Date.now();
+        setMessages(m => [...m, {
+            id: msgId,
+            type: 'agent',
+            isStreaming: true,
+            phase: 1,
+            stepIndex: 0,
+            status: 'running'
+        }]);
+
+        // Simulate Phase 1 Streaming
+        for (let i = 0; i < AGENT_PHASE_1.length; i++) {
+            await new Promise(r => setTimeout(r, 650));
+            setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, stepIndex: i + 1 } : msg));
         }
-        await new Promise(r => setTimeout(r, 350));
-        setIsTyping(false);
 
-        const finalAgentContent = AGENT_FINAL.text;
+        if (autoApprove) {
+            // Simulate brief transition
+            await new Promise(r => setTimeout(r, 400));
 
-        // Add agent message to UI
-        setMessages(m => [...m, { type: 'agent', steps: AGENT_STEPS, ...AGENT_FINAL, id: Date.now() }]);
+            // Advance to Phase 2
+            setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, phase: 2, stepIndex: 0 } : msg));
 
-        // Save agent message to DB
-        await supabase.from('messages').insert({
-            thread_id: threadId,
-            user_id: user.id,
-            role: 'agent',
-            content: finalAgentContent
-        });
+            for (let i = 0; i < AGENT_PHASE_2.length; i++) {
+                await new Promise(r => setTimeout(r, 650));
+                setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, stepIndex: i + 1 } : msg));
+            }
+
+            // Finish fully
+            await new Promise(r => setTimeout(r, 400));
+            setIsTyping(false);
+
+            const finalPayload = {
+                isStreaming: false,
+                status: 'completed',
+                ...AGENT_FINAL
+            };
+
+            setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, ...finalPayload } : msg));
+
+            // Save final agent message to DB
+            await supabase.from('messages').insert({
+                thread_id: threadId,
+                user_id: user.id,
+                role: 'agent',
+                content: AGENT_FINAL.text
+            });
+
+            isGeneratingRef.current = false;
+
+        } else {
+            // Halt at Human-in-the-Loop review phase
+            setIsTyping(false);
+            setMessages(curr => curr.map(msg => msg.id === msgId ? {
+                ...msg,
+                isStreaming: false,
+                status: 'awaiting_approval'
+            } : msg));
+        }
 
         setPanelMode(null);
         inputRef.current?.focus();
+    };
+
+    const approvePhase1 = async (msgId) => {
+        // Resume UI streaming for Phase 2
+        setMessages(curr => curr.map(msg => msg.id === msgId ? {
+            ...msg,
+            isStreaming: true,
+            phase: 2,
+            stepIndex: 0,
+            status: 'running'
+        } : msg));
+
+        for (let i = 0; i < AGENT_PHASE_2.length; i++) {
+            await new Promise(r => setTimeout(r, 650));
+            setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, stepIndex: i + 1 } : msg));
+        }
+
+        await new Promise(r => setTimeout(r, 400));
+
+        const finalPayload = {
+            isStreaming: false,
+            status: 'completed',
+            ...AGENT_FINAL
+        };
+
+        setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, ...finalPayload } : msg));
+
+        // Save final agent message to DB
+        await supabase.from('messages').insert({
+            thread_id: activeThread,
+            user_id: user.id,
+            role: 'agent',
+            content: AGENT_FINAL.text
+        });
+
+        isGeneratingRef.current = false;
     };
 
     const handleSend = async () => {
@@ -516,7 +647,11 @@ export default function ChatPage({ theme, onThemeToggle }) {
                     </div>
                     {threads.map(t => (
                         <div key={t.id} className={`cp-thread-item${activeThread === t.id ? ' active' : ''}`}
-                            onClick={() => { setActiveThread(t.id); setMessages([]); }}
+                            onClick={() => {
+                                isGeneratingRef.current = false;
+                                setActiveThread(t.id);
+                                setMessages([]);
+                            }}
                         >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 6h14M5 12h10M5 18h7" /></svg>
                             <span className="cp-thread-title">{t.title}</span>
@@ -620,47 +755,154 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                     </svg>
                                                 </div>
                                                 <div className="cp-agent-body">
-                                                    <div className="cp-steps">
-                                                        {msg.steps?.map(s => (
-                                                            <div key={s} className="cp-step">
-                                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                                                {s}
+                                                    {/* Thought Process Tree */}
+                                                    <div className="cp-thought-process">
+                                                        <details className="cp-thought-details" open>
+                                                            <summary className="cp-thought-summary">
+                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21" /></svg> View thought process
+                                                            </summary>
+                                                            <div className="cp-thought-tree">
+
+                                                                {/* Render Phase 1 */}
+                                                                {(msg.phase >= 1) && AGENT_PHASE_1.map((step, idx) => {
+                                                                    const isPast = msg.phase > 1 || (msg.phase === 1 && msg.stepIndex > idx) || msg.status === 'completed';
+                                                                    const isCurrent = msg.phase === 1 && msg.stepIndex === idx && msg.isStreaming;
+                                                                    if (!isPast && !isCurrent) return null;
+
+                                                                    return (
+                                                                        <div key={step.id} className={`cp-tree-node ${isCurrent ? 'running' : 'done'}`}>
+                                                                            <div className="cp-tree-main">
+                                                                                {isCurrent ? (
+                                                                                    <span className="cp-run-spinner" />
+                                                                                ) : (
+                                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                                )}
+                                                                                <span>{isCurrent ? step.text : step.doneText}</span>
+                                                                            </div>
+                                                                            {isPast && step.sub && (
+                                                                                <div className="cp-tree-sub">
+                                                                                    {step.sub.map((s, sIdx) => (
+                                                                                        <div key={sIdx} className="cp-tree-sub-item">
+                                                                                            <span className="cp-tree-elbow">└─</span>
+                                                                                            {autoApprove ? <span className="cp-sub-auto">Autoapproved</span> : <span className="cp-sub-auto">—</span>}
+                                                                                            {s.action.startsWith('file:') ? (
+                                                                                                <button onClick={() => openFilePreviewer(s.action.split(':')[1])} className="cp-tree-link">
+                                                                                                    {s.label} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17l9.2-9.2M17 17V7H7" /></svg>
+                                                                                                </button>
+                                                                                            ) : (
+                                                                                                <a href={s.action.split(':')[1]} target="_blank" rel="noreferrer" className="cp-tree-link">
+                                                                                                    {s.label} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17l9.2-9.2M17 17V7H7" /></svg>
+                                                                                                </a>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
+
+                                                                {/* Render Phase 2 */}
+                                                                {(msg.phase >= 2) && AGENT_PHASE_2.map((step, idx) => {
+                                                                    const isPast = msg.phase > 2 || (msg.phase === 2 && msg.stepIndex > idx) || msg.status === 'completed';
+                                                                    const isCurrent = msg.phase === 2 && msg.stepIndex === idx && msg.isStreaming;
+                                                                    if (!isPast && !isCurrent) return null;
+
+                                                                    return (
+                                                                        <div key={step.id} className={`cp-tree-node ${isCurrent ? 'running' : 'done'}`}>
+                                                                            <div className="cp-tree-main">
+                                                                                {isCurrent ? (
+                                                                                    <span className="cp-run-spinner" />
+                                                                                ) : (
+                                                                                    step.icon === 'deploy' ?
+                                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                                )}
+                                                                                <span>{isCurrent ? step.text : step.doneText}</span>
+                                                                            </div>
+                                                                            {isPast && step.sub && (
+                                                                                <div className="cp-tree-sub">
+                                                                                    {step.sub.map((s, sIdx) => (
+                                                                                        <div key={sIdx} className="cp-tree-sub-item">
+                                                                                            <span className="cp-tree-elbow">└─</span>
+                                                                                            {autoApprove ? <span className="cp-sub-auto">Autoapproved</span> : <span className="cp-sub-auto">—</span>}
+                                                                                            {s.action.startsWith('file:') ? (
+                                                                                                <button onClick={() => openFilePreviewer(s.action.split(':')[1])} className="cp-tree-link">
+                                                                                                    {s.label}
+                                                                                                </button>
+                                                                                            ) : (
+                                                                                                <a href={s.action.split(':')[1]} target="_blank" rel="noreferrer" className="cp-tree-link">
+                                                                                                    {s.label} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17l9.2-9.2M17 17V7H7" /></svg>
+                                                                                                </a>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
-                                                        ))}
+                                                        </details>
                                                     </div>
-                                                    <p className="cp-agent-text">{msg.text}</p>
-                                                    {msg.files?.length > 0 && (
-                                                        <div className="cp-agent-files">
-                                                            {msg.files.map(f => (
-                                                                <button
-                                                                    key={f}
-                                                                    className="cp-file-pill"
-                                                                    onClick={() => openFilePreviewer(f)}
-                                                                >
-                                                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                                                                    {f}
+
+                                                    {/* Human in the loop halt block */}
+                                                    {msg.status === 'awaiting_approval' && (
+                                                        <div className="cp-review-block">
+                                                            <div className="cp-review-content">
+                                                                <p>I have generated the Initial Requirements and Architecture. Please review them.</p>
+                                                            </div>
+                                                            <div className="cp-review-actions">
+                                                                <button className="cp-action-btn cp-action-approve" onClick={() => approvePhase1(msg.id)}>
+                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                    Approve to Continue
                                                                 </button>
-                                                            ))}
+                                                                <button className="cp-action-btn cp-action-suggest" onClick={() => { setPreviewFile('Requirements Document'); setPanelMode('file'); setSuggestOpen(true); }}>
+                                                                    Suggest Edits
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     )}
-                                                    {msg.showEndpoints && (
-                                                        <div className="cp-response-actions">
-                                                            <a
-                                                                className="cp-action-btn cp-action-live"
-                                                                href="https://app.interius.dev"
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                            >
-                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
-                                                                View live API
-                                                            </a>
-                                                            <button
-                                                                className="cp-action-btn cp-action-tester"
-                                                                onClick={() => { setPreviewFile(null); setPanelMode('tester'); }}
-                                                            >
-                                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                                                                Test endpoints
-                                                            </button>
+
+                                                    {/* Final output block */}
+                                                    {msg.status === 'completed' && msg.text && (
+                                                        <div className="cp-final-output">
+                                                            <p className="cp-agent-text">{msg.text}</p>
+
+                                                            {msg.files?.length > 0 && (
+                                                                <div className="cp-agent-files-group">
+                                                                    {msg.files.map(f => (
+                                                                        <button key={f} className="cp-file-pill code-chip" onClick={() => openFilePreviewer(f)}>
+                                                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                                                                            {f}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Always show deployment blocks for completed pipeline phases, regardless of explicit payload flags */}
+                                                            {msg.status === 'completed' && msg.phase >= 2 && (
+                                                                <div className="cp-deployment-blocks">
+                                                                    <div className="cp-deploy-block">
+                                                                        <div className="cp-deploy-content">
+                                                                            Use the interactive API playground to test your generated endpoints.
+                                                                        </div>
+                                                                        <button className="cp-action-btn cp-action-tester" onClick={() => { setPreviewFile(null); setPanelMode('tester'); }}>
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                                                                            Test API Endpoints
+                                                                        </button>
+                                                                    </div>
+                                                                    <div className="cp-deploy-block">
+                                                                        <div className="cp-deploy-content">
+                                                                            Your backend has been packaged and containerized via <a href="https://hub.docker.com/" target="_blank" className="cp-tree-link">dockerhub ↗</a> and deployed to production.
+                                                                        </div>
+                                                                        <a className="cp-action-btn cp-action-live" href="https://app.interius.dev" target="_blank" rel="noopener noreferrer">
+                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                                                                            View Live API
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     )}
                                                 </div>
@@ -669,31 +911,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                     </motion.div>
                                 ))}
 
-                                {isTyping && (
-                                    <motion.div className="cp-msg agent" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                                        <div className="cp-agent-wrap">
-                                            <div className="cp-agent-avatar">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                                                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
-                                                </svg>
-                                            </div>
-                                            <div className="cp-agent-body">
-                                                {AGENT_STEPS.slice(0, typingStep).map(s => (
-                                                    <div key={s} className="cp-step done">
-                                                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                                        {s}
-                                                    </div>
-                                                ))}
-                                                {typingStep < AGENT_STEPS.length && (
-                                                    <div className="cp-step current">
-                                                        <span className="cp-dots"><span /><span /><span /></span>
-                                                        {AGENT_STEPS[typingStep]}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
+
                             </AnimatePresence>
                             <div ref={messagesEndRef} />
                         </div>
@@ -830,6 +1048,29 @@ export default function ChatPage({ theme, onThemeToggle }) {
                             )}
                         </div>
 
+                        <div className="cp-autoapprove-toggle" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-sec)', userSelect: 'none' }}>
+                            <label className="cp-switch" style={{ position: 'relative', display: 'inline-block', width: '32px', height: '18px' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={autoApprove}
+                                    onChange={(e) => setAutoApprove(e.target.checked)}
+                                    style={{ opacity: 0, width: 0, height: 0 }}
+                                />
+                                <span className="cp-slider" style={{
+                                    position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                                    backgroundColor: autoApprove ? 'var(--accent)' : 'var(--border)',
+                                    transition: '.3s',
+                                    borderRadius: '18px'
+                                }}>
+                                    <span style={{
+                                        position: 'absolute', content: '""', height: '14px', width: '14px', left: '2px', bottom: '2px',
+                                        backgroundColor: '#fff', transition: '.3s', borderRadius: '50%',
+                                        transform: autoApprove ? 'translateX(14px)' : 'translateX(0)'
+                                    }} />
+                                </span>
+                            </label>
+                            Auto-Approve
+                        </div>
                     </div>
                 </div>
             </main>
