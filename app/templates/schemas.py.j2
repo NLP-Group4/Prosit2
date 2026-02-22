@@ -1,0 +1,108 @@
+"""
+Pydantic schemas for request/response validation.
+"""
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
+{% if auth.enabled %}
+
+# ---------------------------------------------------------------------------
+# Auth schemas
+# ---------------------------------------------------------------------------
+
+class UserCreate(BaseModel):
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: uuid.UUID
+    email: str
+
+    model_config = {"from_attributes": True}
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+{% endif %}
+
+{% for entity in entities %}
+{% set is_auth_user = auth.enabled and entity.name == "User" %}
+{% if not is_auth_user %}
+# ---------------------------------------------------------------------------
+# {{ entity.name }} schemas
+# ---------------------------------------------------------------------------
+
+{% set ns = namespace(pk_field=none, pk_python_type="uuid.UUID") %}
+{% for field in entity.fields %}
+{% if field.primary_key %}
+{% set ns.pk_field = field %}
+{% if field.type == "uuid" %}{% set ns.pk_python_type = "uuid.UUID" %}
+{% elif field.type == "integer" %}{% set ns.pk_python_type = "int" %}
+{% elif field.type == "string" %}{% set ns.pk_python_type = "str" %}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+
+class {{ entity.name }}Base(BaseModel):
+{% for field in entity.fields %}
+{% if not field.primary_key %}
+{% if field.type == "string" %}
+    {{ field.name }}: {{ "Optional[str]" if field.nullable else "str" }} = {{ "None" if field.nullable else "..." }}
+{% elif field.type == "integer" %}
+    {{ field.name }}: {{ "Optional[int]" if field.nullable else "int" }} = {{ "None" if field.nullable else "..." }}
+{% elif field.type == "float" %}
+    {{ field.name }}: {{ "Optional[float]" if field.nullable else "float" }} = {{ "None" if field.nullable else "..." }}
+{% elif field.type == "boolean" %}
+    {{ field.name }}: {{ "Optional[bool]" if field.nullable else "bool" }} = {{ "None" if field.nullable else "..." }}
+{% elif field.type == "datetime" %}
+    {{ field.name }}: {{ "Optional[datetime]" if field.nullable else "datetime" }} = {{ "None" if field.nullable else "..." }}
+{% elif field.type == "uuid" %}
+    {{ field.name }}: {{ "Optional[uuid.UUID]" if field.nullable else "uuid.UUID" }} = {{ "None" if field.nullable else "..." }}
+{% elif field.type == "text" %}
+    {{ field.name }}: {{ "Optional[str]" if field.nullable else "str" }} = {{ "None" if field.nullable else "..." }}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+
+class {{ entity.name }}Create({{ entity.name }}Base):
+    pass
+
+
+
+class {{ entity.name }}Update(BaseModel):
+{% for field in entity.fields %}
+{% if not field.primary_key %}
+{% if field.type == "string" or field.type == "text" %}
+    {{ field.name }}: Optional[str] = None
+{% elif field.type == "integer" %}
+    {{ field.name }}: Optional[int] = None
+{% elif field.type == "float" %}
+    {{ field.name }}: Optional[float] = None
+{% elif field.type == "boolean" %}
+    {{ field.name }}: Optional[bool] = None
+{% elif field.type == "datetime" %}
+    {{ field.name }}: Optional[datetime] = None
+{% elif field.type == "uuid" %}
+    {{ field.name }}: Optional[uuid.UUID] = None
+{% endif %}
+{% endif %}
+{% endfor %}
+
+
+class {{ entity.name }}Response({{ entity.name }}Base):
+    {{ ns.pk_field.name }}: {{ ns.pk_python_type }}
+
+    model_config = {"from_attributes": True}
+{% endif %}
+
+{% endfor %}

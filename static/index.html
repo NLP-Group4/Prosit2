@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backend Generator | AI-Powered FastAPI Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --primary-glow: rgba(99, 102, 241, 0.25);
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --surface-2: #273548;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --error: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            line-height: 1.5;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 860px;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: center;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* User bar */
+        .user-bar {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .user-email {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #a78bfa);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border-radius: 0.375rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-sm:hover {
+            border-color: var(--primary);
+            color: var(--text);
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--surface);
+            border-radius: 1rem;
+            border: 1px solid var(--border);
+            padding: 2rem;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            font-weight: 500;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+            font-size: 0.95rem;
+        }
+
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            padding: 0.85rem 1rem;
+            color: var(--text);
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        textarea { height: 140px; resize: vertical; }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            padding-right: 2.5rem;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px var(--primary-glow);
+        }
+
+        /* Buttons */
+        button.primary {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.85rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button.primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px var(--primary-glow);
+        }
+
+        button.primary:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Model meta */
+        .model-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge.free {
+            background-color: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .badge.paid {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+        }
+
+        /* Status area */
+        .status-area { margin-top: 1.5rem; display: none; }
+        .status-area.active { display: block; }
+
+        .status-stepper {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .status-stepper::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--border);
+            z-index: 0;
+            transform: translateY(-50%);
+        }
+
+        .step {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background-color: var(--surface);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 1;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            transition: all 0.3s;
+        }
+
+        .step.active {
+            border-color: var(--primary);
+            color: var(--primary);
+            background-color: rgba(99, 102, 241, 0.1);
+        }
+
+        .step.completed {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        /* Messages */
+        .message {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .message.info {
+            background-color: rgba(99, 102, 241, 0.1);
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+        }
+
+        .message.error {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+
+        .message.success {
+            background-color: rgba(34, 197, 94, 0.1);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .download-btn {
+            background-color: var(--success);
+            text-decoration: none;
+            color: white;
+            text-align: center;
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .download-btn:hover { background-color: #16a34a; }
+
+        /* Projects list */
+        .project-list {
+            margin-top: 1.5rem;
+        }
+
+        .project-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+            background-color: var(--surface-2);
+            border: 1px solid var(--border);
+            transition: border-color 0.2s;
+        }
+
+        .project-item:hover { border-color: var(--primary); }
+
+        .project-info { flex: 1; }
+
+        .project-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .project-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 1rem;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.completed {
+            background-color: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .status-badge.failed {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+
+        .status-badge.generating, .status-badge.verifying, .status-badge.pending {
+            background-color: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+        }
+
+        /* Animations */
+        .spinner {
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid #ffffff30;
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden { display: none !important; }
+
+        .auth-link {
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .auth-link:hover { color: var(--primary-hover); }
+
+        .auth-error {
+            color: var(--error);
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .nav-tab {
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+
+        .nav-tab:hover { border-color: var(--primary); color: var(--text); }
+        .nav-tab.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>Backend Generator</h1>
+            <p class="subtitle">AI-Powered Production-Ready API Builder</p>
+            <div class="user-bar hidden" id="userBar">
+                <span class="user-email" id="userEmail"></span>
+                <div class="user-avatar" id="userAvatar"></div>
+                <button class="btn-sm" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <!-- AUTH VIEW -->
+        <div id="authView" class="card">
+            <div class="tabs">
+                <button class="tab active" id="loginTab" onclick="showAuthTab('login')">Login</button>
+                <button class="tab" id="registerTab" onclick="showAuthTab('register')">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="loginForm">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password">
+                </div>
+                <button class="primary" onclick="login()">
+                    <span id="loginBtnText">Sign In</span>
+                </button>
+                <div class="auth-error hidden" id="loginError"></div>
+                <p style="text-align:center; margin-top:1rem; color:var(--text-muted); font-size:0.9rem;">
+                    Don't have an account? <span class="auth-link" onclick="showAuthTab('register')">Register</span>
+                </p>
+            </div>
+
+            <!-- Register Form -->
+            <div id="registerForm" class="hidden">
+                <div class="form-group">
+                    <label for="regEmail">Email</label>
+                    <input type="email" id="regEmail" placeholder="you@example.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="regPassword">Password</label>
+                    <input type="password" id="regPassword" placeholder="Min. 8 characters" autocomplete="new-password">
+                </div>
+                <button class="primary" onclick="register()">
+                    <span id="regBtnText">Create Account</span>
+                </button>
+                <div class="auth-error hidden" id="registerError"></div>
+                <p style="text-align:center; margin-top:1rem; color:var(--text-muted); font-size:0.9rem;">
+                    Already have an account? <span class="auth-link" onclick="showAuthTab('login')">Sign in</span>
+                </p>
+            </div>
+        </div>
+
+        <!-- APP VIEW (hidden until logged in) -->
+        <div id="appView" class="hidden">
+            <div class="nav-tabs">
+                <button class="nav-tab active" id="navGenerate" onclick="showAppTab('generate')">⚡ Generate</button>
+                <button class="nav-tab" id="navProjects" onclick="showAppTab('projects')">📁 Projects</button>
+            </div>
+
+            <!-- Generate Tab -->
+            <div id="generateTab" class="card">
+                <div class="form-group">
+                    <label for="prompt">Describe your backend</label>
+                    <textarea id="prompt"
+                        placeholder="e.g. A todo list app with users, tasks, and categories. Users can have many tasks. Authentication is required."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="modelSelect">Model</label>
+                    <select id="modelSelect">
+                        <option value="">Loading models...</option>
+                    </select>
+                    <div class="model-meta" id="modelMeta"></div>
+                </div>
+
+                <button class="primary" id="generateBtn" onclick="generate()">
+                    <span id="btnText">Generate Backend</span>
+                </button>
+
+                <div id="statusArea" class="status-area">
+                    <div class="status-stepper">
+                        <div class="step" id="step1">1</div>
+                        <div class="step" id="step2">2</div>
+                        <div class="step" id="step3">3</div>
+                        <div class="step" id="step4">4</div>
+                        <div class="step" id="step5">5</div>
+                    </div>
+                    <div id="statusMessage" class="message info">Initializing...</div>
+                </div>
+            </div>
+
+            <!-- Projects Tab -->
+            <div id="projectsTab" class="card hidden">
+                <h2 style="margin-bottom:1rem; font-size:1.3rem;">Your Projects</h2>
+                <div id="projectsList" class="project-list">
+                    <p style="color:var(--text-muted);">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================================
+        // State
+        // =====================================================================
+        let authToken = localStorage.getItem('auth_token');
+        let userEmail = localStorage.getItem('user_email');
+
+        // =====================================================================
+        // Auth helpers
+        // =====================================================================
+        function authHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`,
+            };
+        }
+
+        function showAuthTab(tab) {
+            document.getElementById('loginForm').classList.toggle('hidden', tab !== 'login');
+            document.getElementById('registerForm').classList.toggle('hidden', tab !== 'register');
+            document.getElementById('loginTab').classList.toggle('active', tab === 'login');
+            document.getElementById('registerTab').classList.toggle('active', tab === 'register');
+            document.querySelectorAll('.auth-error').forEach(e => { e.classList.add('hidden'); e.textContent = ''; });
+        }
+
+        function showAppTab(tab) {
+            document.getElementById('generateTab').classList.toggle('hidden', tab !== 'generate');
+            document.getElementById('projectsTab').classList.toggle('hidden', tab !== 'projects');
+            document.getElementById('navGenerate').classList.toggle('active', tab === 'generate');
+            document.getElementById('navProjects').classList.toggle('active', tab === 'projects');
+            if (tab === 'projects') loadProjects();
+        }
+
+        function setLoggedIn(token, email) {
+            authToken = token;
+            userEmail = email;
+            localStorage.setItem('auth_token', token);
+            localStorage.setItem('user_email', email);
+            document.getElementById('authView').classList.add('hidden');
+            document.getElementById('appView').classList.remove('hidden');
+            document.getElementById('userBar').classList.remove('hidden');
+            document.getElementById('userEmail').textContent = email;
+            document.getElementById('userAvatar').textContent = email[0].toUpperCase();
+            loadModels();
+        }
+
+        function logout() {
+            authToken = null;
+            userEmail = null;
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_email');
+            document.getElementById('authView').classList.remove('hidden');
+            document.getElementById('appView').classList.add('hidden');
+            document.getElementById('userBar').classList.add('hidden');
+            showAuthTab('login');
+        }
+
+        // =====================================================================
+        // Register
+        // =====================================================================
+        async function register() {
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const errEl = document.getElementById('registerError');
+            const btnText = document.getElementById('regBtnText');
+
+            errEl.classList.add('hidden');
+            btnText.textContent = 'Creating account...';
+
+            try {
+                const res = await fetch('/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || 'Registration failed');
+                }
+
+                // Auto-login after registration
+                await doLogin(email, password);
+            } catch (e) {
+                errEl.textContent = e.message;
+                errEl.classList.remove('hidden');
+            } finally {
+                btnText.textContent = 'Create Account';
+            }
+        }
+
+        // =====================================================================
+        // Login
+        // =====================================================================
+        async function login() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const errEl = document.getElementById('loginError');
+            const btnText = document.getElementById('loginBtnText');
+
+            errEl.classList.add('hidden');
+            btnText.textContent = 'Signing in...';
+
+            try {
+                await doLogin(email, password);
+            } catch (e) {
+                errEl.textContent = e.message;
+                errEl.classList.remove('hidden');
+            } finally {
+                btnText.textContent = 'Sign In';
+            }
+        }
+
+        async function doLogin(email, password) {
+            const formData = new URLSearchParams();
+            formData.append('username', email);
+            formData.append('password', password);
+
+            const res = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.detail || 'Invalid email or password');
+            }
+
+            const { access_token } = await res.json();
+            setLoggedIn(access_token, email);
+        }
+
+        // =====================================================================
+        // Models
+        // =====================================================================
+        async function loadModels() {
+            try {
+                const res = await fetch('/models');
+                const data = await res.json();
+                const select = document.getElementById('modelSelect');
+                select.innerHTML = '';
+
+                data.models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.id;
+                    opt.textContent = `${m.name}${m.is_default ? ' (recommended)' : ''}`;
+                    if (m.id === data.default) opt.selected = true;
+                    opt.dataset.description = m.description || '';
+                    opt.dataset.tier = m.tier || '';
+                    select.appendChild(opt);
+                });
+
+                select.addEventListener('change', updateModelMeta);
+                updateModelMeta();
+            } catch (e) {
+                console.error('Failed to load models:', e);
+            }
+        }
+
+        function updateModelMeta() {
+            const select = document.getElementById('modelSelect');
+            const meta = document.getElementById('modelMeta');
+            const opt = select.options[select.selectedIndex];
+            if (opt && opt.dataset.tier) {
+                meta.innerHTML = `<span class="badge ${opt.dataset.tier}">${opt.dataset.tier}</span> ${opt.dataset.description}`;
+            }
+        }
+
+        // =====================================================================
+        // Generate
+        // =====================================================================
+        async function generate() {
+            const prompt = document.getElementById('prompt').value.trim();
+            if (!prompt) return;
+
+            const model = document.getElementById('modelSelect').value;
+            const btn = document.getElementById('generateBtn');
+            const btnText = document.getElementById('btnText');
+            const statusArea = document.getElementById('statusArea');
+            const statusMessage = document.getElementById('statusMessage');
+
+            statusArea.classList.add('active');
+            statusMessage.className = 'message info';
+            statusMessage.innerHTML = '<div style="display:flex; gap:0.5rem; align-items:center;"><div class="spinner"></div> Generating your backend...</div>';
+            btn.disabled = true;
+            btnText.textContent = 'Generating...';
+
+            document.querySelectorAll('.step').forEach(s => { s.className = 'step'; s.innerHTML = s.id.replace('step', ''); });
+            document.getElementById('step1').classList.add('active');
+
+            try {
+                const response = await fetch('/generate-from-prompt', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ prompt, model: model || undefined }),
+                });
+
+                if (response.status === 401) {
+                    logout();
+                    throw new Error('Session expired. Please log in again.');
+                }
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    const detail = errorData.detail;
+                    throw new Error(
+                        typeof detail === 'object' ? (detail.message || JSON.stringify(detail.errors)) : detail || 'Generation failed'
+                    );
+                }
+
+                const data = await response.json();
+
+                // Success!
+                document.querySelectorAll('.step').forEach(s => { s.classList.add('completed'); s.innerHTML = '✓'; });
+
+                statusMessage.className = 'message success';
+                statusMessage.innerHTML = `
+                    <div><strong>Success!</strong> Project "<strong>${data.project_name}</strong>" generated.</div>
+                    <button class="download-btn" onclick="downloadProject('${data.project_id}', '${data.project_name}')">
+                        ⬇ Download ZIP
+                    </button>
+                    <div style="font-size: 0.8em; margin-top: 0.5rem; color: #86efac;">
+                        Unzip and run: <code>docker compose up --build</code>
+                    </div>
+                `;
+
+                if (data.warnings && data.warnings.length) {
+                    statusMessage.innerHTML += `<div style="margin-top:0.75rem; font-size:0.85rem; color:#fbbf24;">⚠️ ${data.warnings.length} warning(s) — check project details</div>`;
+                }
+
+            } catch (err) {
+                statusMessage.className = 'message error';
+                statusMessage.innerHTML = `<strong>Generation Failed</strong><br>${err.message}`;
+                const activeStep = document.querySelector('.step.active');
+                if (activeStep) activeStep.classList.remove('active');
+            } finally {
+                btn.disabled = false;
+                btnText.textContent = 'Generate Backend';
+            }
+        }
+
+        // =====================================================================
+        // Download
+        // =====================================================================
+        async function downloadProject(projectId, projectName) {
+            try {
+                const res = await fetch(`/projects/${projectId}/download`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                });
+                if (!res.ok) throw new Error('Download failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${projectName || 'backend'}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                URL.revokeObjectURL(url);
+                a.remove();
+            } catch (e) {
+                alert('Download failed: ' + e.message);
+            }
+        }
+
+        // =====================================================================
+        // Projects
+        // =====================================================================
+        async function loadProjects() {
+            const container = document.getElementById('projectsList');
+            container.innerHTML = '<p style="color:var(--text-muted);">Loading...</p>';
+
+            try {
+                const res = await fetch('/projects', {
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                });
+                if (res.status === 401) { logout(); return; }
+                const projects = await res.json();
+
+                if (!projects.length) {
+                    container.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:2rem 0;">No projects yet. Generate your first backend! ⚡</p>';
+                    return;
+                }
+
+                container.innerHTML = projects.map(p => `
+                    <div class="project-item">
+                        <div class="project-info">
+                            <div class="project-name">${p.project_name} <span class="status-badge ${p.status}">${p.status}</span></div>
+                            <div class="project-meta">
+                                ${p.model_used || 'N/A'} · ${new Date(p.created_at).toLocaleDateString()}
+                                ${p.prompt ? ` · "${p.prompt.substring(0, 60)}${p.prompt.length > 60 ? '...' : ''}"` : ''}
+                            </div>
+                        </div>
+                        <div class="project-actions">
+                            ${p.status === 'completed' ? `<button class="btn-sm" onclick="downloadProject('${p.id}', '${p.project_name}')" title="Download">⬇</button>` : ''}
+                            <button class="btn-sm" onclick="deleteProject('${p.id}')" title="Delete" style="color:var(--error);">✕</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<p style="color:var(--error);">Failed to load projects: ${e.message}</p>`;
+            }
+        }
+
+        async function deleteProject(projectId) {
+            if (!confirm('Delete this project?')) return;
+            try {
+                await fetch(`/projects/${projectId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                });
+                loadProjects();
+            } catch (e) {
+                alert('Delete failed: ' + e.message);
+            }
+        }
+
+        // =====================================================================
+        // Init — check for existing session
+        // =====================================================================
+        if (authToken && userEmail) {
+            // Verify token is still valid
+            fetch('/projects', { headers: { 'Authorization': `Bearer ${authToken}` } })
+                .then(res => {
+                    if (res.ok) {
+                        setLoggedIn(authToken, userEmail);
+                    } else {
+                        logout();
+                    }
+                })
+                .catch(() => logout());
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,7 @@
+I am thinking of slightly modifying the architecture to make it more scalable without incurring costs.
+
+My thoughts are to have our Backend API generator app in the cloud, and have the generated backend running on the on the user's local machine. Basically, Electron app that runs locally, detects or installs docker on the user's machine, runs docker on the user's machine and runs the generated backend artifact in that local docker environment. This solves scaling issues and cost issues.User validates backend on their own computional resources. We can only consider cloud hosting for paying users but that is for later.
+
+This may change a bit the way some of our implemented agents work. For example now the deployment verification agent at the end of the pipeline now cannot directly test the running backend on the user's machine. It can only go through the electron app to test the running backend. But remember the point of this agent was to ensure we only give a user a backend that has been fully tested and is working not just syntactically correct or just valid responses, otherwise we would gracefully tell the user that we are refining the backend while we fix the detected flaws and only handover a fully functional backend.
+
+What are your thoughts on this?

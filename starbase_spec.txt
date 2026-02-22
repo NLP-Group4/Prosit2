@@ -1,0 +1,7 @@
+
+[ARCHITECTURAL DECISION RECORD]
+Project: Project Starbase
+We need to build an API for the space station.
+Core entities must follow these specific naming conventions:
+- GalacticStarship: Must have a 'warp_speed' field (float) and 'captain_name' (string).
+- AsteroidMiner: Must have 'mineral_yield_target' (integer) and 'active_status' (boolean).

@@ -1,0 +1,56 @@
+"""
+CRUD operations for all entities.
+"""
+import uuid
+from typing import Optional
+
+from sqlalchemy.orm import Session
+
+from app import models, schemas
+
+{% for entity in entities %}
+{% if not (auth.enabled and entity.name == 'User') %}
+# ---------------------------------------------------------------------------
+# {{ entity.name }} CRUD
+# ---------------------------------------------------------------------------
+
+def create_{{ entity.singular }}_item(db: Session, item: "schemas.{{ entity.name }}Create") -> "models.{{ entity.name }}":
+    db_item = models.{{ entity.name }}(**item.model_dump())
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+def get_{{ entity.singular }}_item(db: Session, item_id: uuid.UUID) -> Optional["models.{{ entity.name }}"]:
+    return db.query(models.{{ entity.name }}).filter(models.{{ entity.name }}.{{ entity.pk_field }} == item_id).first()
+
+
+def get_{{ entity.table_name }}_list(db: Session, skip: int = 0, limit: int = 100) -> list["models.{{ entity.name }}"]:
+    return db.query(models.{{ entity.name }}).offset(skip).limit(limit).all()
+
+
+def update_{{ entity.singular }}_item(
+    db: Session, item_id: uuid.UUID, item: "schemas.{{ entity.name }}Update"
+) -> Optional["models.{{ entity.name }}"]:
+    db_item = db.query(models.{{ entity.name }}).filter(models.{{ entity.name }}.{{ entity.pk_field }} == item_id).first()
+    if db_item is None:
+        return None
+    update_data = item.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_item, key, value)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+def delete_{{ entity.singular }}_item(db: Session, item_id: uuid.UUID) -> bool:
+    db_item = db.query(models.{{ entity.name }}).filter(models.{{ entity.name }}.{{ entity.pk_field }} == item_id).first()
+    if db_item is None:
+        return False
+    db.delete(db_item)
+    db.commit()
+    return True
+
+{% endif %}
+{% endfor %}

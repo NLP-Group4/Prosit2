@@ -1,0 +1,8 @@
+.env
+output/
+data/
+__pycache__/
+agents-env/
+*.pyc
+platform.db
+platform_pgdata/

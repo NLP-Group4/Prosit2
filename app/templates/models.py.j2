@@ -1,0 +1,45 @@
+"""
+SQLAlchemy ORM models.
+"""
+import uuid
+
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, Text
+from sqlalchemy.dialects.postgresql import UUID
+
+from app.database import Base
+
+{% if auth.enabled %}
+
+class UserAccount(Base):
+    """Built-in user model for JWT authentication."""
+    __tablename__ = "user_accounts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+
+{% endif %}
+{% for entity in entities %}
+
+class {{ entity.name }}(Base):
+    __tablename__ = "{{ entity.table_name }}"
+
+{% for field in entity.fields %}
+{% if field.type == "uuid" %}
+    {{ field.name }} = Column(UUID(as_uuid=True){{ ", primary_key=True, default=uuid.uuid4" if field.primary_key else "" }}{{ ", unique=True" if field.unique and not field.primary_key else "" }}{{ ", nullable=False" if not field.nullable else "" }})
+{% elif field.type == "string" %}
+    {{ field.name }} = Column(String{{ ", primary_key=True" if field.primary_key else "" }}{{ ", unique=True" if field.unique and not field.primary_key else "" }}{{ ", nullable=False" if not field.nullable else "" }})
+{% elif field.type == "integer" %}
+    {{ field.name }} = Column(Integer{{ ", primary_key=True" if field.primary_key else "" }}{{ ", unique=True" if field.unique and not field.primary_key else "" }}{{ ", nullable=False" if not field.nullable else "" }})
+{% elif field.type == "float" %}
+    {{ field.name }} = Column(Float{{ ", primary_key=True" if field.primary_key else "" }}{{ ", unique=True" if field.unique and not field.primary_key else "" }}{{ ", nullable=False" if not field.nullable else "" }})
+{% elif field.type == "boolean" %}
+    {{ field.name }} = Column(Boolean{{ ", primary_key=True" if field.primary_key else "" }}{{ ", nullable=False" if not field.nullable else "" }})
+{% elif field.type == "datetime" %}
+    {{ field.name }} = Column(DateTime{{ ", primary_key=True" if field.primary_key else "" }}{{ ", nullable=False" if not field.nullable else "" }})
+{% elif field.type == "text" %}
+    {{ field.name }} = Column(Text{{ ", primary_key=True" if field.primary_key else "" }}{{ ", nullable=False" if not field.nullable else "" }})
+{% endif %}
+{% endfor %}
+
+{% endfor %}
