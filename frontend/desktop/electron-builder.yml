@@ -1,0 +1,146 @@
+# Electron Builder Configuration
+# Builds distributable packages for macOS, Windows, and Linux
+
+appId: com.interius.apibuilder
+productName: Interius API Builder
+copyright: Copyright © 2026 Interius
+
+# Directories
+directories:
+  output: dist-electron
+  buildResources: assets
+
+# Files to include in the app
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+  - node_modules/**/*
+
+# Exclude unnecessary files
+files:
+  - "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}"
+  - "!.editorconfig"
+  - "!**/._*"
+  - "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}"
+  - "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}"
+  - "!**/{appveyor.yml,.travis.yml,circle.yml}"
+  - "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+  - "!src/**/*"
+  - "!public/**/*"
+  - "!*.md"
+  - "!.vscode"
+  - "!.github"
+
+# macOS Configuration
+mac:
+  category: public.app-category.developer-tools
+  icon: assets/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: assets/entitlements.mac.plist
+  entitlementsInherit: assets/entitlements.mac.plist
+
+dmg:
+  title: "${productName} ${version}"
+  icon: assets/icon.icns
+  background: assets/dmg-background.png
+  contents:
+    - x: 410
+      y: 150
+      type: link
+      path: /Applications
+    - x: 130
+      y: 150
+      type: file
+
+# Windows Configuration
+win:
+  icon: assets/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+        - ia32
+    - target: portable
+      arch:
+        - x64
+  publisherName: Interius
+  verifyUpdateCodeSignature: false
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: "${productName}"
+  installerIcon: assets/icon.ico
+  uninstallerIcon: assets/icon.ico
+  installerHeaderIcon: assets/icon.ico
+
+# Linux Configuration
+linux:
+  icon: assets/icon.png
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+    - target: rpm
+      arch:
+        - x64
+  category: Development
+  synopsis: AI-powered backend API generator
+  description: Generate production-ready FastAPI backends from natural language prompts
+
+# AppImage specific
+appImage:
+  license: LICENSE
+
+# Debian package specific
+deb:
+  depends:
+    - docker.io
+  recommends:
+    - docker-compose
+
+# Auto-update configuration
+publish:
+  provider: github
+  owner: interius
+  repo: api-builder-desktop
+  releaseType: release
+
+# Compression
+compression: maximum
+
+# Asar archive (faster startup)
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+# Build metadata
+buildVersion: "${version}"
+
+# Notarization (macOS only - requires Apple Developer account)
+afterSign: scripts/notarize.js
+
+# Build resources
+extraResources:
+  - from: assets/
+    to: assets/
+    filter:
+      - "**/*"
