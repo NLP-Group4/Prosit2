@@ -310,6 +310,11 @@ export default function ChatPage({ theme, onThemeToggle }) {
     const inputRef = useRef(null);
     const fileInputRef = useRef(null);
     const isGeneratingRef = useRef(false);
+    const latestAgentMessage = [...messages].reverse().find((msg) => msg.type === 'agent');
+    const pipelineInProgress = isTyping || (
+        latestAgentMessage &&
+        (latestAgentMessage.status === 'running' || latestAgentMessage.status === 'awaiting_approval')
+    );
 
     useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isTyping]);
 
@@ -440,7 +445,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
     };
 
     const sendMessage = async (text) => {
-        if (!text || isTyping || !user) return;
+        if (!text || isGeneratingRef.current || !user) return;
 
         isGeneratingRef.current = true;
 
@@ -581,7 +586,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
 
     const handleSend = async () => {
         const text = input.trim();
-        if ((!text && attachedFiles.length === 0) || isTyping) return;
+        if ((!text && attachedFiles.length === 0) || pipelineInProgress) return;
         setInput('');
         await sendMessage(text);
     };
@@ -1003,14 +1008,19 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 )}
                             </button>
                             <button
-                                className={`cp-send${(input.trim() || attachedFiles.length > 0) ? ' active' : ''}`}
+                                className={`cp-send${(input.trim() || attachedFiles.length > 0) ? ' active' : ''}${pipelineInProgress ? ' loading' : ''}`}
                                 onClick={handleSend}
-                                disabled={(!input.trim() && attachedFiles.length === 0) || isTyping}
-                                aria-label="Send"
+                                disabled={(!input.trim() && attachedFiles.length === 0) || pipelineInProgress}
+                                aria-label={pipelineInProgress ? 'Model is still processing' : 'Send'}
+                                title={pipelineInProgress ? 'Model is still processing...' : 'Send'}
                             >
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94l18.04-8.01a.75.75 0 000-1.36L3.478 2.405z" />
-                                </svg>
+                                {pipelineInProgress ? (
+                                    <span className="cp-send-spinner" aria-hidden="true" />
+                                ) : (
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94l18.04-8.01a.75.75 0 000-1.36L3.478 2.405z" />
+                                    </svg>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -1048,7 +1058,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                             )}
                         </div>
 
-                        <div className="cp-autoapprove-toggle" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-sec)', userSelect: 'none' }}>
+                        <div className="cp-autoapprove-toggle" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-secondary)', userSelect: 'none' }}>
                             <label className="cp-switch" style={{ position: 'relative', display: 'inline-block', width: '32px', height: '18px' }}>
                                 <input
                                     type="checkbox"
@@ -1058,13 +1068,15 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 />
                                 <span className="cp-slider" style={{
                                     position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
-                                    backgroundColor: autoApprove ? 'var(--accent)' : 'var(--border)',
+                                    backgroundColor: autoApprove ? 'var(--accent)' : 'var(--bg-secondary)',
+                                    border: `1px solid ${autoApprove ? 'var(--accent)' : 'var(--border-subtle)'}`,
+                                    boxShadow: autoApprove ? '0 0 0 2px var(--accent-glow)' : 'inset 0 0 0 1px var(--border-subtle)',
                                     transition: '.3s',
                                     borderRadius: '18px'
                                 }}>
                                     <span style={{
                                         position: 'absolute', content: '""', height: '14px', width: '14px', left: '2px', bottom: '2px',
-                                        backgroundColor: '#fff', transition: '.3s', borderRadius: '50%',
+                                        backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-subtle)', transition: '.3s', borderRadius: '50%',
                                         transform: autoApprove ? 'translateX(14px)' : 'translateX(0)'
                                     }} />
                                 </span>

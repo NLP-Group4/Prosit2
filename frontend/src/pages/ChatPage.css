@@ -1181,6 +1181,34 @@
     opacity: 0.88;
 }
 
+.cp-send.loading {
+    background: var(--accent);
+    color: #fff;
+    cursor: not-allowed;
+    opacity: 0.9;
+}
+
+.cp-send.loading:hover {
+    transform: none;
+    opacity: 0.9;
+}
+
+.cp-send-spinner {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    border-radius: 50%;
+    display: inline-block;
+    animation: cp-send-spin 0.7s linear infinite;
+}
+
+@keyframes cp-send-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Input footer */
 .cp-input-footer {
     max-width: 900px;
