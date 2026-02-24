@@ -92,8 +92,8 @@ class TestTryGenerateWithModel:
         async def mock_run_async(**kwargs):
             yield final_event
 
-        with patch("agents.prompt_to_spec.Runner") as MockRunner, \
-             patch("agents.prompt_to_spec.InMemorySessionService") as MockSS:
+        with patch("backend.agents.prompt_to_spec.Runner") as MockRunner, \
+             patch("backend.agents.prompt_to_spec.InMemorySessionService") as MockSS:
             mock_session = MagicMock()
             mock_session.id = "test-session"
             MockSS.return_value.create_session = AsyncMock(return_value=mock_session)
@@ -111,8 +111,8 @@ class TestTryGenerateWithModel:
         async def mock_run_async(**kwargs):
             yield final_event
 
-        with patch("agents.prompt_to_spec.Runner") as MockRunner, \
-             patch("agents.prompt_to_spec.InMemorySessionService") as MockSS:
+        with patch("backend.agents.prompt_to_spec.Runner") as MockRunner, \
+             patch("backend.agents.prompt_to_spec.InMemorySessionService") as MockSS:
             mock_session = MagicMock()
             mock_session.id = "test-session"
             MockSS.return_value.create_session = AsyncMock(return_value=mock_session)
@@ -129,8 +129,8 @@ class TestTryGenerateWithModel:
         async def mock_run_async(**kwargs):
             yield final_event
 
-        with patch("agents.prompt_to_spec.Runner") as MockRunner, \
-             patch("agents.prompt_to_spec.InMemorySessionService") as MockSS:
+        with patch("backend.agents.prompt_to_spec.Runner") as MockRunner, \
+             patch("backend.agents.prompt_to_spec.InMemorySessionService") as MockSS:
             mock_session = MagicMock()
             mock_session.id = "test-session"
             MockSS.return_value.create_session = AsyncMock(return_value=mock_session)
@@ -148,8 +148,8 @@ class TestTryGenerateWithModel:
             raise Exception("429 RESOURCE_EXHAUSTED quota exceeded")
             yield  # Make it an async generator
 
-        with patch("agents.prompt_to_spec.Runner") as MockRunner, \
-             patch("agents.prompt_to_spec.InMemorySessionService") as MockSS:
+        with patch("backend.agents.prompt_to_spec.Runner") as MockRunner, \
+             patch("backend.agents.prompt_to_spec.InMemorySessionService") as MockSS:
             mock_session = MagicMock()
             mock_session.id = "test-session"
             MockSS.return_value.create_session = AsyncMock(return_value=mock_session)
@@ -173,8 +173,8 @@ class TestTryGenerateWithModel:
             else:
                 yield valid_event
 
-        with patch("agents.prompt_to_spec.Runner") as MockRunner, \
-             patch("agents.prompt_to_spec.InMemorySessionService") as MockSS:
+        with patch("backend.agents.prompt_to_spec.Runner") as MockRunner, \
+             patch("backend.agents.prompt_to_spec.InMemorySessionService") as MockSS:
             mock_session = MagicMock()
             mock_session.id = "test-session"
             MockSS.return_value.create_session = AsyncMock(return_value=mock_session)
@@ -196,7 +196,7 @@ class TestGenerateSpecFromPrompt:
         """Successful generation returns (BackendSpec, model_id) tuple."""
         expected_spec = BackendSpec(**json.loads(VALID_SPEC_JSON))
 
-        with patch("agents.prompt_to_spec._try_generate_with_model",
+        with patch("backend.agents.prompt_to_spec._try_generate_with_model",
                     new_callable=AsyncMock) as mock_gen:
             mock_gen.return_value = expected_spec
 
@@ -210,13 +210,13 @@ class TestGenerateSpecFromPrompt:
         expected_spec = BackendSpec(**json.loads(VALID_SPEC_JSON))
         call_models = []
 
-        async def mock_generate(model_id, prompt, context="", max_retries=2):
+        async def mock_generate(model_id, prompt, context="", messages=None, max_retries=2):
             call_models.append(model_id)
             if model_id == "gemini-2.0-flash":
                 raise Exception("429 RESOURCE_EXHAUSTED")
             return expected_spec
 
-        with patch("agents.prompt_to_spec._try_generate_with_model",
+        with patch("backend.agents.prompt_to_spec._try_generate_with_model",
                     side_effect=mock_generate):
             spec, model_used = await generate_spec_from_prompt("Build a test API")
             assert model_used == "gemini-2.5-flash"
@@ -225,10 +225,10 @@ class TestGenerateSpecFromPrompt:
     @pytest.mark.asyncio
     async def test_all_models_fail_raises(self):
         """If all models in the chain fail, should raise ValueError."""
-        async def mock_generate(model_id, prompt, max_retries=2):
+        async def mock_generate(model_id, prompt, context="", messages=None, max_retries=2):
             raise Exception("429 RESOURCE_EXHAUSTED")
 
-        with patch("agents.prompt_to_spec._try_generate_with_model",
+        with patch("backend.agents.prompt_to_spec._try_generate_with_model",
                     side_effect=mock_generate):
             with pytest.raises(ValueError, match="All models in fallback chain failed"):
                 await generate_spec_from_prompt("Build a test API")
@@ -238,7 +238,7 @@ class TestGenerateSpecFromPrompt:
         """A custom model_id should be used as the starting point."""
         expected_spec = BackendSpec(**json.loads(VALID_SPEC_JSON))
 
-        with patch("agents.prompt_to_spec._try_generate_with_model",
+        with patch("backend.agents.prompt_to_spec._try_generate_with_model",
                     new_callable=AsyncMock) as mock_gen:
             mock_gen.return_value = expected_spec
 

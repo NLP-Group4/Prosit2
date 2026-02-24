@@ -18,7 +18,10 @@ from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
 
-from app.platform_db import PlatformUser, get_db
+try:
+    from backend.app.platform_db import PlatformUser, get_db
+except ModuleNotFoundError:
+    from app.platform_db import PlatformUser, get_db
 
 # ---------------------------------------------------------------------------
 # Config

@@ -16,6 +16,27 @@ class DockerManager {
     constructor() {
         this.activeProjects = new Map();
         this.dockerAvailable = null; // Cache detection result
+        this.progressCallback = null; // Progress callback for deployment updates
+    }
+
+    /**
+     * Sets the progress callback for deployment updates.
+     * @param {Function} callback - Function(progressData) where progressData = { phase, message, ...details }
+     */
+    setProgressCallback(callback) {
+        this.progressCallback = callback;
+    }
+
+    /**
+     * Internal helper to invoke progress callback safely.
+     * @param {string} phase - The deployment phase (building, starting, health_checking, healthy, error)
+     * @param {string} message - Human-readable progress message
+     * @param {Object} details - Additional details (projectId, attempt, elapsed, etc.)
+     */
+    _reportProgress(phase, message, details = {}) {
+        if (this.progressCallback) {
+            this.progressCallback({ phase, message, ...details });
+        }
     }
 
     /**
@@ -197,18 +218,35 @@ class DockerManager {
             throw new Error(`${guidance.title}: ${guidance.message}\n\nPlease install Docker Desktop: ${guidance.installUrl}`);
         }
 
+        console.log(`[DockerManager] Deploying project ${projectId} from ${projectPath}`);
+        const composeFile = path.join(projectPath, 'docker-compose.yml');
+
+        if (!fs.existsSync(composeFile)) {
+            throw new Error('Project is missing a docker-compose.yml file.');
+        }
+
+        // Stop any existing containers from a previous deploy (avoids port conflicts)
+        try {
+            await execAsync('docker compose down -v', { cwd: projectPath });
+            console.log(`[DockerManager] Stopped previous containers`);
+        } catch (downErr) {
+            console.log(`[DockerManager] No previous containers or down failed: ${downErr.message}`);
+        }
+
         return new Promise((resolve, reject) => {
-            console.log(`[DockerManager] Deploying project ${projectId} from ${projectPath}`);
-            const composeFile = path.join(projectPath, 'docker-compose.yml');
-
-            if (!fs.existsSync(composeFile)) {
-                return reject(new Error('Project is missing a docker-compose.yml file.'));
-            }
-
-            // Patch the generated docker-compose port to prevent collision with Cloud API on port 8000
+            // Patch ports to avoid collisions:
+            // - App: 8000->8001 (platform API uses 8000)
+            // - DB: 5432->5434 (system/postgres/platform often use 5432/5433)
             let composeContent = fs.readFileSync(composeFile, 'utf8');
             composeContent = composeContent.replace(/"8000:8000"|8000:8000/g, '"8001:8000"');
+            composeContent = composeContent.replace(/"5432:5432"|5432:5432/g, '"5434:5432"');
             fs.writeFileSync(composeFile, composeContent);
+
+            // Report building phase
+            this._reportProgress('building', 'Building Docker images...', { projectId });
+
+            let stdoutLog = '';
+            let stderrLog = '';
 
             // Using pure docker compose (V2) instead of docker-compose
             const dockerProcess = spawn('docker', ['compose', 'up', '--build', '-d'], {
@@ -218,19 +256,40 @@ class DockerManager {
 
             this.activeProjects.set(projectId, { path: projectPath, process: dockerProcess });
 
-            dockerProcess.stdout.on('data', (data) => console.log(`[DOCKER ${projectId}]: ${data}`));
-            dockerProcess.stderr.on('data', (data) => console.log(`[DOCKER ${projectId}]: ${data}`));
+            dockerProcess.stdout.on('data', (data) => {
+                const str = data.toString();
+                stdoutLog += str;
+                console.log(`[DOCKER ${projectId}]: ${str}`);
+                this._reportProgress('building', str.trim(), { projectId });
+            });
+
+            dockerProcess.stderr.on('data', (data) => {
+                const str = data.toString();
+                stderrLog += str;
+                console.log(`[DOCKER ${projectId}]: ${str}`);
+                this._reportProgress('building', str.trim(), { projectId });
+            });
 
             dockerProcess.on('close', async (code) => {
                 if (code !== 0) {
-                    return reject(new Error(`Docker Compose failed with exit code ${code}`));
+                    const errDetail = [stdoutLog, stderrLog].filter(Boolean).join('\n').trim();
+                    const errMsg = errDetail
+                        ? `Docker Compose failed (exit ${code}).\n\n${errDetail.slice(-2000)}`
+                        : `Docker Compose failed with exit code ${code}`;
+                    this._reportProgress('error', errMsg, { projectId, code });
+                    return reject(new Error(errMsg));
                 }
 
+                // Report starting phase
+                this._reportProgress('starting', 'Containers started, waiting for health checks...', { projectId });
+                
                 console.log(`[DockerManager] Containers started for ${projectId}. Waiting for health...`);
                 try {
                     await this.waitForHealth(8001); // Wait for the backend running on patched port 8001
+                    this._reportProgress('healthy', 'All services are healthy', { projectId });
                     resolve(true);
                 } catch (e) {
+                    this._reportProgress('error', e.message, { projectId });
                     reject(e);
                 }
             });
@@ -239,20 +298,40 @@ class DockerManager {
 
     /**
      * Polls the backend health endpoint.
+     * @param {number} port - Port to check
+     * @param {number} maxAttempts - Maximum number of attempts (default: 60)
+     * @param {number} intervalMs - Interval between attempts in milliseconds (default: 2000)
      */
-    async waitForHealth(port, maxAttempts = 30) {
+    async waitForHealth(port, maxAttempts = 60, intervalMs = 2000) {
         const url = `http://localhost:${port}/health`;
+        const startTime = Date.now();
+        
         for (let j = 0; j < maxAttempts; j++) {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            
+            // Report health check progress
+            this._reportProgress('health_checking', `Health check attempt ${j + 1}/${maxAttempts}`, {
+                attempt: j + 1,
+                maxAttempts,
+                elapsed,
+                url
+            });
+            
             try {
                 // Dynamically fetch using Node's native fetch
                 const res = await fetch(url);
-                if (res.ok) return true;
+                if (res.ok) {
+                    console.log(`[DockerManager] Health check succeeded after ${j + 1} attempts (${elapsed}s)`);
+                    return true;
+                }
             } catch (e) {
                 // Connection refused means container isn't ready
             }
-            await new Promise(r => setTimeout(r, 1000));
+            await new Promise(r => setTimeout(r, intervalMs));
         }
-        throw new Error(`Service at ${url} never became healthy.`);
+        
+        const totalTime = Math.floor((Date.now() - startTime) / 1000);
+        throw new Error(`Service at ${url} never became healthy after ${maxAttempts} attempts (${totalTime}s).`);
     }
 
     /**

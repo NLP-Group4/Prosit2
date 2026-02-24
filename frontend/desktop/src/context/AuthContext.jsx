@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -58,11 +58,11 @@ export function AuthProvider({ children }) {
         throw new Error("OAuth not supported by FastAPI backend MVP");
     };
 
-    const logout = async () => {
+    const logout = useCallback(() => {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user_email');
         setUser(null);
-    };
+    }, []);
 
     return (
         <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithOAuth, logout }}>

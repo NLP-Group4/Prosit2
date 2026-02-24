@@ -24,26 +24,48 @@ from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from backend.app.spec_schema import (
-    BackendSpec, GenerateResponse, ProjectSummary, ProjectDetail, PromptRequest, AutomaticDeployRequest,
-    AutoFixRequest, ThreadSummary, ThreadDetail, MessageSchema, ChatRequest, VerificationReportRequest
-)
-from backend.app.code_generator import generate_project_files
-from backend.app.project_assembler import assemble_project
-from backend.app.report_generator import generate_report
-from backend.app.platform_db import (
-    get_db, PlatformUser, Project, ProjectStatus, Document, DocumentChunk, Thread, Message, init_db
-)
-from backend.app.platform_auth import router as auth_router, get_current_user
-from backend.app import storage
-from backend.app.rag import store_document, retrieve_context, delete_document
-from backend.app.document_processor import (
-    extract_text, UnsupportedFileError, FileTooLargeError,
-)
-from backend.agents.orchestrator import run_pipeline, GenerationResult
-from backend.agents.model_registry import list_models, DEFAULT_MODEL
-from backend.agents.spec_review import review_spec
-from backend.agents.intent_router import classify_intent, Intent
+try:
+    from backend.app.spec_schema import (
+        BackendSpec, GenerateResponse, ProjectSummary, ProjectDetail, PromptRequest, AutomaticDeployRequest,
+        AutoFixRequest, ThreadSummary, ThreadDetail, MessageSchema, ChatRequest, VerificationReportRequest
+    )
+    from backend.app.code_generator import generate_project_files
+    from backend.app.project_assembler import assemble_project
+    from backend.app.report_generator import generate_report
+    from backend.app.platform_db import (
+        get_db, PlatformUser, Project, ProjectStatus, Document, DocumentChunk, Thread, Message, init_db
+    )
+    from backend.app.platform_auth import router as auth_router, get_current_user
+    from backend.app import storage
+    from backend.app.rag import store_document, retrieve_context, delete_document
+    from backend.app.document_processor import (
+        extract_text, UnsupportedFileError, FileTooLargeError,
+    )
+    from backend.agents.orchestrator import run_pipeline, GenerationResult
+    from backend.agents.model_registry import list_models, DEFAULT_MODEL
+    from backend.agents.spec_review import review_spec
+    from backend.agents.intent_router import classify_intent, Intent
+except ModuleNotFoundError:
+    from app.spec_schema import (
+        BackendSpec, GenerateResponse, ProjectSummary, ProjectDetail, PromptRequest, AutomaticDeployRequest,
+        AutoFixRequest, ThreadSummary, ThreadDetail, MessageSchema, ChatRequest, VerificationReportRequest
+    )
+    from app.code_generator import generate_project_files
+    from app.project_assembler import assemble_project
+    from app.report_generator import generate_report
+    from app.platform_db import (
+        get_db, PlatformUser, Project, ProjectStatus, Document, DocumentChunk, Thread, Message, init_db
+    )
+    from app.platform_auth import router as auth_router, get_current_user
+    from app import storage
+    from app.rag import store_document, retrieve_context, delete_document
+    from app.document_processor import (
+        extract_text, UnsupportedFileError, FileTooLargeError,
+    )
+    from agents.orchestrator import run_pipeline, GenerationResult
+    from agents.model_registry import list_models, DEFAULT_MODEL
+    from agents.spec_review import review_spec
+    from agents.intent_router import classify_intent, Intent
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
@@ -73,7 +95,15 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    init_db()
+    try:
+        init_db()
+    except Exception as e:
+        # Allow test environments (or constrained sandboxes) to boot the app
+        # without a live PostgreSQL instance.
+        if os.getenv("API_BUILDER_SKIP_DB_INIT", "0") == "1":
+            logging.warning("Skipping DB init due to API_BUILDER_SKIP_DB_INIT=1: %s", e)
+            return
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -286,6 +316,7 @@ async def generate_from_prompt(
             title=f"Initial build – {project_name}"
         )
         db.add(default_thread)
+        db.flush()  # Ensure default_thread.id exists before creating messages
         # Persist the original user prompt as the first message
         user_msg = Message(thread_id=default_thread.id, role="user", content=request.prompt)
         db.add(user_msg)
@@ -521,6 +552,34 @@ def create_thread(
         id=thread.id, project_id=thread.project_id, title=thread.title,
         created_at=thread.created_at.isoformat(), updated_at=thread.updated_at.isoformat()
     )
+
+
+@app.delete(
+    "/projects/{project_id}/threads/{thread_id}",
+    tags=["Threads"],
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_thread(
+    project_id: uuid.UUID,
+    thread_id: uuid.UUID,
+    current_user: PlatformUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a thread and all its messages."""
+    project = db.query(Project).filter(
+        Project.id == project_id, Project.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    thread = db.query(Thread).filter(
+        Thread.id == thread_id, Thread.project_id == project.id
+    ).first()
+    if not thread:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    db.delete(thread)
+    db.commit()
 
 
 @app.get(

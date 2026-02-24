@@ -37,7 +37,10 @@ logger = logging.getLogger(__name__)
 
 # Import Groq client for fallback
 try:
-    from agents.groq_client import GroqClient
+    try:
+        from backend.agents.groq_client import GroqClient
+    except ImportError:
+        from agents.groq_client import GroqClient
     GROQ_AVAILABLE = GroqClient.is_available()
 except ImportError:
     GROQ_AVAILABLE = False

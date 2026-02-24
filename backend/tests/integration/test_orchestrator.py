@@ -61,13 +61,13 @@ class TestRunPipeline:
         fake_zip.write_text("fake zip")
         db, project_id = _mock_db()
 
-        with patch("agents.orchestrator.generate_spec_from_prompt",
+        with patch("backend.agents.orchestrator.generate_spec_from_prompt",
                     new_callable=AsyncMock) as mock_spec, \
-             patch("agents.orchestrator.review_spec") as mock_review, \
-             patch("agents.orchestrator.generate_project_files") as mock_gen, \
-             patch("agents.orchestrator.assemble_project") as mock_assemble, \
-             patch("agents.orchestrator.generate_report") as mock_report, \
-             patch("agents.orchestrator.storage") as mock_storage:
+             patch("backend.agents.orchestrator.review_spec") as mock_review, \
+             patch("backend.agents.orchestrator.generate_project_files") as mock_gen, \
+             patch("backend.agents.orchestrator.assemble_project") as mock_assemble, \
+             patch("backend.agents.orchestrator.generate_report") as mock_report, \
+             patch("backend.agents.orchestrator.storage") as mock_storage:
 
             mock_spec.return_value = (spec, "gemini-2.0-flash")
             mock_review.return_value = ValidationResult(valid=True, spec=spec)
@@ -96,7 +96,7 @@ class TestRunPipeline:
         """Pipeline should return failure when spec generation fails."""
         db, project_id = _mock_db()
 
-        with patch("agents.orchestrator.generate_spec_from_prompt",
+        with patch("backend.agents.orchestrator.generate_spec_from_prompt",
                     new_callable=AsyncMock) as mock_spec:
             mock_spec.side_effect = ValueError("All models failed")
 
@@ -116,9 +116,9 @@ class TestRunPipeline:
         spec = BackendSpec(**VALID_SPEC_DICT)
         db, project_id = _mock_db()
 
-        with patch("agents.orchestrator.generate_spec_from_prompt",
+        with patch("backend.agents.orchestrator.generate_spec_from_prompt",
                     new_callable=AsyncMock) as mock_spec, \
-             patch("agents.orchestrator.review_spec") as mock_review:
+             patch("backend.agents.orchestrator.review_spec") as mock_review:
 
             mock_spec.return_value = (spec, "gemini-2.0-flash")
             mock_review.return_value = ValidationResult(
@@ -146,13 +146,13 @@ class TestRunPipeline:
         fake_zip.write_text("fake zip")
         db, project_id = _mock_db()
 
-        with patch("agents.orchestrator.generate_spec_from_prompt",
+        with patch("backend.agents.orchestrator.generate_spec_from_prompt",
                     new_callable=AsyncMock) as mock_spec, \
-             patch("agents.orchestrator.review_spec") as mock_review, \
-             patch("agents.orchestrator.generate_project_files") as mock_gen, \
-             patch("agents.orchestrator.assemble_project") as mock_assemble, \
-             patch("agents.orchestrator.generate_report") as mock_report, \
-             patch("agents.orchestrator.storage") as mock_storage:
+             patch("backend.agents.orchestrator.review_spec") as mock_review, \
+             patch("backend.agents.orchestrator.generate_project_files") as mock_gen, \
+             patch("backend.agents.orchestrator.assemble_project") as mock_assemble, \
+             patch("backend.agents.orchestrator.generate_report") as mock_report, \
+             patch("backend.agents.orchestrator.storage") as mock_storage:
 
             mock_spec.return_value = (spec, "gemini-2.5-pro")
             mock_review.return_value = ValidationResult(valid=True, spec=spec)
@@ -169,7 +169,12 @@ class TestRunPipeline:
                 model_id="gemini-2.5-pro",
             )
 
-            mock_spec.assert_called_once_with("Build a test API", model_id="gemini-2.5-pro", context="")
+            mock_spec.assert_called_once_with(
+                "Build a test API",
+                model_id="gemini-2.5-pro",
+                context="",
+                messages=None,
+            )
             assert result.model_used == "gemini-2.5-pro"
 
     @pytest.mark.asyncio
@@ -180,13 +185,13 @@ class TestRunPipeline:
         fake_zip.write_text("fake zip")
         db, project_id = _mock_db()
 
-        with patch("agents.orchestrator.generate_spec_from_prompt",
+        with patch("backend.agents.orchestrator.generate_spec_from_prompt",
                     new_callable=AsyncMock) as mock_spec, \
-             patch("agents.orchestrator.review_spec") as mock_review, \
-             patch("agents.orchestrator.generate_project_files") as mock_gen, \
-             patch("agents.orchestrator.assemble_project") as mock_assemble, \
-             patch("agents.orchestrator.generate_report") as mock_report, \
-             patch("agents.orchestrator.storage") as mock_storage:
+             patch("backend.agents.orchestrator.review_spec") as mock_review, \
+             patch("backend.agents.orchestrator.generate_project_files") as mock_gen, \
+             patch("backend.agents.orchestrator.assemble_project") as mock_assemble, \
+             patch("backend.agents.orchestrator.generate_report") as mock_report, \
+             patch("backend.agents.orchestrator.storage") as mock_storage:
 
             mock_spec.return_value = (spec, "gemini-2.0-flash")
             mock_review.return_value = ValidationResult(

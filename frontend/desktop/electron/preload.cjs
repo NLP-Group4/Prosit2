@@ -13,5 +13,8 @@ contextBridge.exposeInMainWorld(
         // Docker detection and guidance
         detectDocker: () => ipcRenderer.invoke('detect-docker'),
         getDockerGuidance: () => ipcRenderer.invoke('get-docker-guidance'),
+
+        // Deploy existing project (for returning users)
+        deployProject: (args) => ipcRenderer.invoke('deploy-project', args),
     }
 );

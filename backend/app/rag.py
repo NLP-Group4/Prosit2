@@ -17,7 +17,10 @@ from google import genai
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.platform_db import Document, DocumentChunk
+try:
+    from backend.app.platform_db import Document, DocumentChunk
+except ModuleNotFoundError:
+    from app.platform_db import Document, DocumentChunk
 
 logger = logging.getLogger(__name__)
 

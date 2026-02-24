@@ -3,6 +3,11 @@ import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app
 
+pytestmark = pytest.mark.skipif(
+    os.getenv("RUN_EXTERNAL_RAG_TESTS") != "1",
+    reason="Set RUN_EXTERNAL_RAG_TESTS=1 to run external RAG integration test",
+)
+
 TEST_USER = {
     "email": "ragtest@example.com",
     "password": "ragtestpassword123"

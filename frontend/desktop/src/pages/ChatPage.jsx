@@ -90,8 +90,61 @@ const AGENT_FINAL = {
 
 const METHOD_COLOR = { GET: '#22c55e', POST: '#60a5fa', PUT: '#f59e0b', DELETE: '#f87171' };
 
+function DeployBackendButton({ projectId, onSuccess }) {
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+    const handleDeploy = async () => {
+        if (!projectId || !window.api?.deployProject) return;
+        setLoading(true);
+        setError(null);
+        try {
+            const token = localStorage.getItem('auth_token');
+            const result = await window.api.deployProject({
+                projectId,
+                token,
+                apiUrl: 'http://localhost:8000',
+            });
+            if (result?.success) {
+                onSuccess?.();
+            } else {
+                setError(result?.error || 'Deploy failed');
+            }
+        } catch (e) {
+            setError(e.message || 'Deploy failed');
+        } finally {
+            setLoading(false);
+        }
+    };
+    return (
+        <div>
+            <button className="cp-action-btn" onClick={handleDeploy} disabled={loading}>
+                {loading ? <span className="ep-spinner" style={{ width: 14, height: 14 }} /> : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg> Deploy Backend</>}
+            </button>
+            {error && (
+                <pre style={{
+                    marginTop: 8,
+                    fontSize: 11,
+                    color: 'var(--error, #ef4444)',
+                    background: 'var(--bg-card-hover, rgba(0,0,0,0.05))',
+                    padding: 8,
+                    borderRadius: 6,
+                    maxHeight: 120,
+                    overflow: 'auto',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                }}>
+                    {error}
+                </pre>
+            )}
+        </div>
+    );
+}
+
+/** Base URL for the deployed generated backend (Docker on port 8001 per docs) */
+const DEPLOYED_API_BASE = 'http://localhost:8001';
+
 /* ─── Endpoint Card ─── */
-function EndpointCard({ ep }) {
+function EndpointCard({ ep, baseUrl = DEPLOYED_API_BASE }) {
     const [inputVal, setInputVal] = useState(ep.placeholder || '');
     const [response, setResponse] = useState(null);
     const [statusBadge, setStatusBadge] = useState(null);
@@ -103,46 +156,46 @@ function EndpointCard({ ep }) {
         setStatusBadge(null);
 
         try {
-            // Construct the path (replacing path parameters if generic input provided, 
-            // though in a real app we'd want dedicated input fields for each path parameter.
-            // For this API builder MVP, we do a basic replace or append)
             let finalPath = ep.path;
-            // eslint-disable-next-line no-unused-vars
             let reqBody = null;
 
             if (ep.method === 'POST' || ep.method === 'PUT') {
                 try {
-                    if (inputVal) JSON.parse(inputVal); // Just validate JSON
+                    reqBody = inputVal ? JSON.parse(inputVal) : (ep.method === 'POST' ? {} : null);
                 } catch (e) {
                     setResponse(`Invalid JSON input:\n${e.message}`);
                     setStatusBadge('ERROR');
                     setLoading(false);
                     return;
                 }
-            } else if (inputVal && finalPath.includes('{')) {
-                // naive path parameter replacement
-                finalPath = finalPath.replace(/\{[^}]+\}/g, inputVal);
-            } else if (inputVal && finalPath.includes(':')) {
-                finalPath = finalPath.replace(/:[^/]+/g, inputVal);
+            } else if (inputVal && (finalPath.includes('{') || finalPath.includes(':') || finalPath.endsWith('/}'))) {
+                finalPath = finalPath.replace(/\{[^}]+\}/g, inputVal).replace(/:[^/]+/g, inputVal);
             }
 
-            // Since we use docker compose, the deployed API runs on localhost:5001 or 5000 inside its own env
-            // But we can't easily proxy dynamic user ports in Vite. Let's just mock the successful response 
-            // dynamically using the endpoint definition for the MVP, rather than failing on CORS/Port issues.
+            const url = `${baseUrl}${finalPath.startsWith('/') ? finalPath : '/' + finalPath}`;
+            const isFormLogin = ep.path === '/auth/login' && ep.method === 'POST';
+            const body = isFormLogin && reqBody
+                ? new URLSearchParams({ username: reqBody.username || reqBody.email || '', password: reqBody.password || '' }).toString()
+                : (reqBody != null ? JSON.stringify(reqBody) : undefined);
+            const headers = isFormLogin ? { 'Content-Type': 'application/x-www-form-urlencoded' } : ((ep.method === 'POST' || ep.method === 'PUT') ? { 'Content-Type': 'application/json' } : {});
+            const res = await fetch(url, {
+                method: ep.method,
+                headers,
+                body,
+            });
 
-            // To be robust for the MVP presentation: 
-            await new Promise(r => setTimeout(r, 800)); // Simulate network
-
-            setStatusBadge('200 OK');
-            setResponse(JSON.stringify({
-                success: true,
-                message: `Successfully executed ${ep.method} ${finalPath}`,
-                mock_data: (ep.method === 'GET' && !finalPath.includes('{')) ? [{ id: 1, name: 'Sample Auto-generated Item' }] : { id: 1, text: 'Auto-generated response' }
-            }, null, 2));
-
+            const text = await res.text();
+            let parsed;
+            try {
+                parsed = text ? JSON.parse(text) : null;
+            } catch {
+                parsed = text;
+            }
+            setStatusBadge(`${res.status} ${res.statusText}`);
+            setResponse(typeof parsed === 'object' ? JSON.stringify(parsed, null, 2) : String(parsed));
         } catch (error) {
-            setStatusBadge('500 ERROR');
-            setResponse(error.message);
+            setStatusBadge('ERROR');
+            setResponse(`Request failed: ${error.message}\n\nEnsure Docker is running and the generated backend was deployed (Electron app).`);
         } finally {
             setLoading(false);
         }
@@ -294,6 +347,10 @@ export default function ChatPage({ theme, onThemeToggle }) {
                 const res = await fetch('/api/projects', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                if (res.status === 401) {
+                    logout();
+                    return;
+                }
                 if (res.ok) {
                     const data = await res.json();
                     // Seed each project with an empty threads array; we'll lazy-load
@@ -312,7 +369,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
             }
         };
         fetchProjects();
-    }, [user]);
+    }, [user, logout]);
 
     // When a project expands, fetch its threads
     useEffect(() => {
@@ -320,14 +377,17 @@ export default function ChatPage({ theme, onThemeToggle }) {
         const token = localStorage.getItem('auth_token');
         fetch(`/api/projects/${expandedProject}/threads`, {
             headers: { 'Authorization': `Bearer ${token}` }
-        }).then(r => r.ok ? r.json() : []).then(data => {
+        }).then(r => {
+            if (r.status === 401) { logout(); return []; }
+            return r.ok ? r.json() : [];
+        }).then(data => {
             setProjects(prev => prev.map(p =>
                 p.id === expandedProject
-                    ? { ...p, threads: data.map(t => ({ id: t.id, title: t.title })) }
+                    ? { ...p, threads: (data || []).map(t => ({ id: t.id, title: t.title })) }
                     : p
             ));
         }).catch(err => console.error('Failed to load threads', err));
-    }, [expandedProject]);
+    }, [expandedProject, logout]);
 
     const loadProjectDetails = async (projectId) => {
         try {
@@ -371,19 +431,86 @@ export default function ChatPage({ theme, onThemeToggle }) {
 
             setProjectFiles(generatedFiles);
 
-            // Generate endpoints from spec for API tester
-            if (spec.routes) {
-                const dynamicEndpoints = spec.routes.map((r, i) => ({
-                    id: `ep-${i}`,
-                    method: r.method,
-                    path: r.path,
-                    description: r.description || `Autogenerated ${r.method} endpoint`,
-                    inputLabel: r.method === 'POST' || r.method === 'PUT' ? 'Request Body (JSON)' : (r.path.includes('{') ? 'Path parameters' : null),
-                    placeholder: r.method === 'POST' || r.method === 'PUT' ? '{"key": "value"}' : null,
-                    mockResponse: JSON.stringify({ success: true, message: `Hit ${r.method} ${r.path} successfully in staging.` }, null, 2)
-                }));
-                setProjectEndpoints(dynamicEndpoints);
+            // Generate endpoints from spec for API tester (matches generated backend structure)
+            const dynamicEndpoints = [];
+            dynamicEndpoints.push({
+                id: 'ep-health',
+                method: 'GET',
+                path: '/health',
+                description: 'Health check for the deployed backend',
+                inputLabel: null,
+                placeholder: null,
+            });
+            if (spec.auth?.enabled) {
+                dynamicEndpoints.push({
+                    id: 'ep-register',
+                    method: 'POST',
+                    path: '/auth/register',
+                    description: 'Register a new user',
+                    inputLabel: 'Request Body (JSON)',
+                    placeholder: '{"email":"user@example.com","password":"password123"}',
+                });
+                dynamicEndpoints.push({
+                    id: 'ep-login',
+                    method: 'POST',
+                    path: '/auth/login',
+                    description: 'Login (form: username=email, password)',
+                    inputLabel: 'Request Body (JSON)',
+                    placeholder: '{"username":"user@example.com","password":"password123"}',
+                });
             }
+            if (spec.entities) {
+                for (const entity of spec.entities) {
+                    if (spec.auth?.enabled && entity.name?.toLowerCase() === 'user') continue;
+                    const tableName = entity.table_name || `${entity.name.toLowerCase()}s`;
+                    const fields = entity.fields || [];
+                    const createPayload = {};
+                    for (const f of fields) {
+                        if (f.name === 'id') continue;
+                        createPayload[f.name] = f.type === 'boolean' ? false : f.type === 'integer' ? 0 : 'test-value';
+                    }
+                    dynamicEndpoints.push({
+                        id: `ep-${tableName}-create`,
+                        method: 'POST',
+                        path: `/${tableName}/`,
+                        description: `Create ${entity.name}`,
+                        inputLabel: 'Request Body (JSON)',
+                        placeholder: JSON.stringify(createPayload, null, 2),
+                    });
+                    dynamicEndpoints.push({
+                        id: `ep-${tableName}-list`,
+                        method: 'GET',
+                        path: `/${tableName}/`,
+                        description: `List all ${entity.name}s`,
+                        inputLabel: null,
+                        placeholder: null,
+                    });
+                    dynamicEndpoints.push({
+                        id: `ep-${tableName}-get`,
+                        method: 'GET',
+                        path: `/${tableName}/{item_id}`,
+                        description: `Get ${entity.name} by ID`,
+                        inputLabel: 'Item ID (UUID)',
+                        placeholder: '00000000-0000-0000-0000-000000000001',
+                    });
+                }
+            }
+            if (spec.routes) {
+                for (let i = 0; i < spec.routes.length; i++) {
+                    const r = spec.routes[i];
+                    if (!dynamicEndpoints.some(e => e.path === r.path && e.method === r.method)) {
+                        dynamicEndpoints.push({
+                            id: `ep-route-${i}`,
+                            method: r.method,
+                            path: r.path,
+                            description: r.description || `${r.method} endpoint`,
+                            inputLabel: r.method === 'POST' || r.method === 'PUT' ? 'Request Body (JSON)' : (r.path.includes('{') ? 'Path parameters' : null),
+                            placeholder: r.method === 'POST' || r.method === 'PUT' ? '{"key": "value"}' : null,
+                        });
+                    }
+                }
+            }
+            setProjectEndpoints(dynamicEndpoints);
 
             return data;
 
@@ -393,20 +520,22 @@ export default function ChatPage({ theme, onThemeToggle }) {
         }
     };
 
-    // Load messages when activeThread changes
+    // Load messages when activeThread/activeProject changes
     useEffect(() => {
-        if (!activeThread) {
-            setMessages([]);
-            setProjectSpec(null);
-            setProjectFiles({});
-            setProjectEndpoints([]);
+        if (!activeThread || !activeProject) {
+            if (!activeThread) {
+                setMessages([]);
+                setProjectSpec(null);
+                setProjectFiles({});
+                setProjectEndpoints([]);
+            }
             return;
         }
 
         if (isGeneratingRef.current) return;
 
         const initThread = async () => {
-            const data = await loadProjectDetails(activeThread);
+            const data = await loadProjectDetails(activeProject);
             if (!data) return;
 
             // For this API builder, an active project means it's already generated.
@@ -433,7 +562,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
             setMessages(mockHistory);
         };
         initThread();
-    }, [activeThread]);
+    }, [activeThread, activeProject]);
 
     const { recording, toggle: toggleRecording } = useVoiceRecorder((text) => {
         setInput(prev => prev ? prev + ' ' + text : text);
@@ -454,20 +583,39 @@ export default function ChatPage({ theme, onThemeToggle }) {
         setPreviewFile(null);
     };
 
-    const handleDeleteThread = async (e, id) => {
+    const handleDeleteProject = async (e, projectId) => {
         e.stopPropagation();
-        // Remove from projects list
-        setProjects(prev => prev.filter(p => p.id !== id));
-        if (activeThread === id || activeProject === id) {
+        if (!confirm('Delete this project and all its threads? This cannot be undone.')) return;
+        setProjects(prev => prev.filter(p => p.id !== projectId));
+        if (activeProject === projectId) {
             setActiveThread(null);
             setActiveProject(null);
             localStorage.removeItem('interius_active_thread');
             localStorage.removeItem('interius_active_project');
             setMessages([]);
         }
-
         const token = localStorage.getItem('auth_token');
-        await fetch(`/api/projects/${id}`, {
+        await fetch(`/api/projects/${projectId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+    };
+
+    const handleDeleteThread = async (e, projectId, threadId) => {
+        e.stopPropagation();
+        if (!confirm('Delete this thread? This cannot be undone.')) return;
+        setProjects(prev => prev.map(p =>
+            p.id === projectId
+                ? { ...p, threads: p.threads.filter(t => t.id !== threadId) }
+                : p
+        ));
+        if (activeThread === threadId) {
+            setActiveThread(null);
+            localStorage.removeItem('interius_active_thread');
+            setMessages([]);
+        }
+        const token = localStorage.getItem('auth_token');
+        await fetch(`/api/projects/${projectId}/threads/${threadId}`, {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -757,9 +905,9 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 </svg>
                                 <span className="cp-thread-title">{project.title}</span>
                                 <button
-                                    className="cp-thread-delete"
+                                    className="cp-thread-delete cp-delete-project"
                                     title="Delete project"
-                                    onClick={(e) => handleDeleteThread(e, project.id)}
+                                    onClick={(e) => handleDeleteProject(e, project.id)}
                                 >
                                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                                 </button>
@@ -781,6 +929,13 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                         >
                                             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M5 6h14M5 12h10M5 18h7" /></svg>
                                             <span className="cp-thread-title">{t.title}</span>
+                                            <button
+                                                className="cp-thread-delete cp-delete-thread"
+                                                title="Delete thread"
+                                                onClick={(e) => handleDeleteThread(e, project.id, t.id)}
+                                            >
+                                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                            </button>
                                         </div>
                                     ))}
                                     {/* Add new thread button */}
@@ -792,6 +947,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                 method: 'POST',
                                                 headers: { 'Authorization': `Bearer ${token}` }
                                             });
+                                            if (res.status === 401) { logout(); return; }
                                             if (res.ok) {
                                                 const t = await res.json();
                                                 setProjects(prev => prev.map(p =>
@@ -850,7 +1006,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                 {/* Top bar */}
                 <div className="cp-topbar">
                     <span className="cp-topbar-thread">
-                        {activeThread ? threads.find(t => t.id === activeThread)?.title || 'New thread' : 'New thread'}
+                        {activeThread && activeProject ? projects.find(p => p.id === activeProject)?.threads.find(t => t.id === activeThread)?.title || 'New thread' : 'New thread'}
                     </span>
                 </div>
 
@@ -1022,9 +1178,20 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                             {/* Always show deployment blocks for completed pipeline phases, regardless of explicit payload flags */}
                                                             {msg.status === 'completed' && msg.phase >= 2 && (
                                                                 <div className="cp-deployment-blocks">
+                                                                    {window.api?.deployProject && (
+                                                                        <div className="cp-deploy-block">
+                                                                            <div className="cp-deploy-content">
+                                                                                Re-deploy this backend to Docker (e.g. after app restart). Required before testing.
+                                                                            </div>
+                                                                            <DeployBackendButton
+                                                                                projectId={activeProject}
+                                                                                onSuccess={() => setPanelMode('tester')}
+                                                                            />
+                                                                        </div>
+                                                                    )}
                                                                     <div className="cp-deploy-block">
                                                                         <div className="cp-deploy-content">
-                                                                            Use the interactive API playground to test your generated endpoints.
+                                                                            Use the interactive API playground to test your generated endpoints against the deployed backend.
                                                                         </div>
                                                                         <button className="cp-action-btn cp-action-tester" onClick={() => { setPreviewFile(null); setPanelMode('tester'); }}>
                                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
@@ -1033,9 +1200,9 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                                     </div>
                                                                     <div className="cp-deploy-block">
                                                                         <div className="cp-deploy-content">
-                                                                            Your backend has been containerized and deployed to your local Docker environment. The automated verification suite has confirmed all endpoints are functional.
+                                                                            Your backend runs at localhost:8001. The automated verification suite has confirmed all endpoints are functional.
                                                                         </div>
-                                                                        <a className="cp-action-btn cp-action-live" href="http://localhost:8001/docs" target="_blank" rel="noopener noreferrer">
+                                                                        <a className="cp-action-btn cp-action-live" href={`${DEPLOYED_API_BASE}/docs`} target="_blank" rel="noopener noreferrer">
                                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
                                                                             View Local API Documentation
                                                                         </a>
@@ -1245,13 +1412,14 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 <>
                                     <div className="cp-rp-swagger">
                                         <a
-                                            href="https://app.interius.dev/docs"
+                                            href={`${DEPLOYED_API_BASE}/docs`}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="cp-swagger-btn"
+                                            title="Open your deployed backend's Swagger UI (localhost:8001)"
                                         >
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" /></svg>
-                                            Open Swagger UI
+                                            Open Swagger UI (Local)
                                             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                                         </a>
                                     </div>

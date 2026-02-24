@@ -309,7 +309,7 @@
 }
 
 .cp-thread-delete {
-    display: none;
+    display: flex;
     align-items: center;
     justify-content: center;
     width: 20px;
@@ -320,8 +320,12 @@
     transition: all var(--transition-fast);
 }
 
+/* Delete buttons always visible; opacity on hover for emphasis */
+.cp-thread-item .cp-thread-delete {
+    opacity: 0.6;
+}
 .cp-thread-item:hover .cp-thread-delete {
-    display: flex;
+    opacity: 1;
 }
 
 .cp-thread-delete:hover {

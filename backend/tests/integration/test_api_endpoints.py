@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.main import app
 from backend.app.spec_schema import BackendSpec
+from backend.app.platform_db import Project, ProjectStatus
 from backend.agents.orchestrator import GenerationResult
 
 
@@ -170,13 +171,21 @@ class TestGenerateEndpoint:
 # ---------------------------------------------------------------------------
 
 class TestGenerateFromPrompt:
-    def test_successful_generation(self, client, auth_headers, test_user, tmp_path):
+    def test_successful_generation(self, client, auth_headers, test_user, db_session, tmp_path):
         spec = BackendSpec(**VALID_SPEC)
         fake_zip = tmp_path / "test.zip"
         with zipfile.ZipFile(fake_zip, "w") as zf:
             zf.writestr("test/app/main.py", "# test")
 
         project_id = uuid.uuid4()
+        user, _ = test_user
+        db_session.add(Project(
+            id=project_id,
+            user_id=user.id,
+            project_name="pending",
+            status=ProjectStatus.PENDING,
+        ))
+        db_session.commit()
         mock_result = GenerationResult(
             success=True,
             project_id=project_id,
@@ -185,7 +194,7 @@ class TestGenerateFromPrompt:
             model_used="gemini-2.0-flash",
         )
 
-        with patch("app.main.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
+        with patch("backend.app.main.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
             mock_pipeline.return_value = mock_result
             r = client.post("/generate-from-prompt", json={
                 "prompt": "Build a simple task API"
@@ -204,7 +213,7 @@ class TestGenerateFromPrompt:
             warnings=["Generic name"],
         )
 
-        with patch("app.main.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
+        with patch("backend.app.main.run_pipeline", new_callable=AsyncMock) as mock_pipeline:
             mock_pipeline.return_value = mock_result
             r = client.post("/generate-from-prompt", json={
                 "prompt": "Build a task API"

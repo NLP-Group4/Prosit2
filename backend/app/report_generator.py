@@ -9,9 +9,14 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.spec_schema import BackendSpec
-from agents.deploy_verify import VerificationResult
-from agents.spec_review import ValidationResult
+try:
+    from backend.app.spec_schema import BackendSpec
+    from backend.agents.deploy_verify import VerificationResult
+    from backend.agents.spec_review import ValidationResult
+except ModuleNotFoundError:
+    from app.spec_schema import BackendSpec
+    from agents.deploy_verify import VerificationResult
+    from agents.spec_review import ValidationResult
 
 
 def generate_report(

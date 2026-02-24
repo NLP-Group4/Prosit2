@@ -6,6 +6,7 @@ so that test files don't need to set up auth individually.
 """
 
 import uuid
+import os
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,6 +14,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+
+os.environ.setdefault("API_BUILDER_SKIP_DB_INIT", "1")
 
 from backend.app.main import app
 from backend.app.platform_db import Base, PlatformUser, get_db

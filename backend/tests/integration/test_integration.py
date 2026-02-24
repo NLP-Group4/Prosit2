@@ -70,6 +70,20 @@ def _wait_for_health(url: str, timeout: int = COMPOSE_TIMEOUT) -> bool:
     return False
 
 
+def _docker_available() -> bool:
+    """Return True only if Docker daemon is reachable for this process."""
+    try:
+        result = subprocess.run(
+            ["docker", "info"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -101,6 +115,9 @@ def project_dir():
 @pytest.fixture(scope="module")
 def running_compose(project_dir):
     """Start docker compose, wait for health, yield, then tear down."""
+    if not _docker_available():
+        pytest.skip("Docker is unavailable or inaccessible in this environment")
+
     # Build & start
     result = subprocess.run(
         ["docker", "compose", "up", "-d", "--build"],
