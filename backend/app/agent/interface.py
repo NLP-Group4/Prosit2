@@ -25,10 +25,29 @@ Return a concise assistant reply:
 - If no pipeline: directly answer or ask a clarifying question.
 - If pipeline: acknowledge and say Interius is starting generation.
 - Always speak as Interius (use the name "Interius" in the assistant reply).
+- Do not prefix replies with a speaker label like "Interius:".
+- If an attachment summary indicates `text=no`, Interius only knows the file metadata (not its contents yet).
+  Be honest and ask the user to re-upload or paste the relevant portion if content is needed.
 
 If `should_trigger_pipeline=true`, provide `pipeline_prompt` as a cleaned version of the request suitable
 for downstream agents. If false, set `pipeline_prompt` to null.
+
+Use recent conversation context when provided to interpret follow-up requests, pronouns, and references
+to previously generated files/artifacts.
 """.strip()
+
+
+class InterfaceContextMessage(BaseModel):
+    role: Literal["user", "assistant", "agent"]
+    content: str = Field(..., min_length=1)
+
+
+class InterfaceAttachmentSummary(BaseModel):
+    filename: str = Field(..., min_length=1)
+    mime_type: str | None = None
+    size_bytes: int | None = None
+    text_excerpt: str | None = None
+    has_text_content: bool = False
 
 
 class InterfaceDecision(BaseModel):
@@ -54,12 +73,33 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
             api_key=settings.INTERFACE_LLM_API_KEY or None,
         )
 
-    async def run(self, input_data: str) -> InterfaceDecision:
+    async def run(
+        self,
+        input_data: str,
+        recent_messages: list[InterfaceContextMessage] | None = None,
+        attachment_summaries: list[InterfaceAttachmentSummary] | None = None,
+    ) -> InterfaceDecision:
         text = (input_data or "").strip()
 
         heuristic = self._quick_non_pipeline(text)
         if heuristic:
             return heuristic
+
+        attachment_clarifier = self._quick_attachment_metadata_only_response(
+            text, attachment_summaries
+        )
+        if attachment_clarifier:
+            return attachment_clarifier
+
+        if not text and attachment_summaries:
+            count = len(attachment_summaries)
+            noun = "file" if count == 1 else "files"
+            return InterfaceDecision(
+                intent="context_question",
+                should_trigger_pipeline=False,
+                assistant_reply=f"I've noted {count} attached {noun} as thread context. Tell me what you want Interius to build when you're ready.",
+                pipeline_prompt=None,
+            )
 
         if not text:
             return InterfaceDecision(
@@ -71,16 +111,69 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
 
         decision = await self.llm.generate_structured(
             system_prompt=INTERFACE_SYSTEM_PROMPT,
-            user_prompt=text,
+            user_prompt=self._build_user_prompt(text, recent_messages, attachment_summaries),
             response_schema=InterfaceDecision,
         )
         return self._normalize_decision(text, decision)
 
     @staticmethod
+    def _build_user_prompt(
+        latest_prompt: str,
+        recent_messages: list[InterfaceContextMessage] | None,
+        attachment_summaries: list[InterfaceAttachmentSummary] | None,
+    ) -> str:
+        sections: list[str] = []
+
+        trimmed_msgs: list[InterfaceContextMessage] = []
+        for msg in (recent_messages or [])[-10:]:
+            content = (msg.content or "").strip()
+            if not content:
+                continue
+            trimmed_msgs.append(msg.model_copy(update={"content": content}))
+
+        # Avoid duplicating the latest prompt if the frontend already included it in context.
+        if (
+            trimmed_msgs
+            and trimmed_msgs[-1].role == "user"
+            and trimmed_msgs[-1].content == latest_prompt.strip()
+        ):
+            trimmed_msgs = trimmed_msgs[:-1]
+
+        if trimmed_msgs:
+            context_lines = "\n".join(
+                f"- {msg.role}: {msg.content}" for msg in trimmed_msgs
+            )
+            sections.append(
+                "Recent conversation context (most recent last):\n"
+                f"{context_lines}"
+            )
+
+        trimmed_files = (attachment_summaries or [])[-8:]
+        if trimmed_files:
+            file_lines = []
+            for file in trimmed_files:
+                parts = [file.filename]
+                if file.mime_type:
+                    parts.append(file.mime_type)
+                if file.size_bytes is not None:
+                    parts.append(f"{file.size_bytes} bytes")
+                parts.append("text=yes" if file.has_text_content else "text=no")
+                line = " | ".join(parts)
+                if file.text_excerpt:
+                    line += f"\n  excerpt: {file.text_excerpt}"
+                file_lines.append(f"- {line}")
+            sections.append(
+                "Thread attachment summaries (for context only; not full file contents):\n"
+                + "\n".join(file_lines)
+            )
+
+        sections.append("Latest user message:\n" + latest_prompt)
+        return "\n\n".join(sections)
+
+    @staticmethod
     def _normalize_decision(original_prompt: str, decision: InterfaceDecision) -> InterfaceDecision:
         assistant_reply = (decision.assistant_reply or "").strip()
-        if assistant_reply and "interius" not in assistant_reply.lower():
-            assistant_reply = f"Interius: {assistant_reply}"
+        assistant_reply = re.sub(r"^\s*Interius:\s*", "", assistant_reply, flags=re.IGNORECASE)
 
         if decision.should_trigger_pipeline:
             pipeline_prompt = (decision.pipeline_prompt or "").strip() or original_prompt.strip()
@@ -130,7 +223,7 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
             return InterfaceDecision(
                 intent="social",
                 should_trigger_pipeline=False,
-                assistant_reply="Interius: You're welcome. If you want, send the next feature or bug fix request and I'll route it correctly.",
+                assistant_reply="You're welcome. If you want, send the next feature or bug fix request and Interius will route it correctly.",
                 pipeline_prompt=None,
             )
 
@@ -138,8 +231,44 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
             return InterfaceDecision(
                 intent="social",
                 should_trigger_pipeline=False,
-                assistant_reply="Interius: Hi. Tell me what you need help with, and I'll either answer directly or start the pipeline if it's a build request.",
+                assistant_reply="Hi. Tell me what you need help with, and Interius will either answer directly or start the pipeline if it's a build request.",
                 pipeline_prompt=None,
             )
 
         return None
+
+    @staticmethod
+    def _quick_attachment_metadata_only_response(
+        text: str,
+        attachment_summaries: list[InterfaceAttachmentSummary] | None,
+    ) -> InterfaceDecision | None:
+        if not text or not attachment_summaries:
+            return None
+
+        normalized = re.sub(r"\s+", " ", text.lower()).strip()
+        mentions_attachment = any(
+            token in normalized
+            for token in ("attach", "attachment", "document", "pdf", "file", "there", "it")
+        )
+        asks_for_contents = any(
+            token in normalized
+            for token in ("read", "see", "what is in", "what's in", "use it", "use that", "summarize", "extract")
+        )
+
+        if not (mentions_attachment and asks_for_contents):
+            return None
+
+        if any(file.has_text_content for file in attachment_summaries):
+            return None
+
+        latest = attachment_summaries[-1]
+        file_label = latest.filename if latest.filename else "the previously attached file"
+        return InterfaceDecision(
+            intent="clarification",
+            should_trigger_pipeline=False,
+            assistant_reply=(
+                f"I can see metadata for `{file_label}`, but I don't currently have its contents in this session. "
+                "Please re-upload it (or paste the relevant section) if you want Interius to use it."
+            ),
+            pipeline_prompt=None,
+        )

@@ -5,7 +5,22 @@ import { useAuth } from '../context/AuthContext';
 import ThemeToggle from '../components/ThemeToggle';
 import { supabase } from '../lib/supabase';
 import { generateThreadTitle } from '../lib/llm';
-import { routeChatIntent } from '../lib/interface';
+import {
+    routeChatIntent,
+    getInterfaceThreadContext,
+    setInterfaceThreadContextFromMessages,
+    appendInterfaceThreadContext,
+    clearInterfaceThreadContext,
+    clearAllInterfaceThreadContexts,
+} from '../lib/interface';
+import {
+    ingestThreadFiles,
+    getThreadFileContextSummaries,
+    getThreadBuildContextFiles,
+    mergeThreadFileMetadata,
+    clearThreadFileContext,
+    clearAllThreadFileContexts,
+} from '../lib/threadFileContext';
 import './ChatPage.css';
 
 /* ─── Static Data ─── */
@@ -364,20 +379,35 @@ export default function ChatPage({ theme, onThemeToggle }) {
         setIsMessagesLoading(true);
 
         const fetchMessages = async () => {
-            const { data } = await supabase.from('messages')
+            const { data: messageRows } = await supabase.from('messages')
+                .select('*')
+                .eq('thread_id', activeThread)
+                .order('created_at', { ascending: true });
+            const { data: attachmentRows, error: attachmentError } = await supabase.from('message_attachments')
                 .select('*')
                 .eq('thread_id', activeThread)
                 .order('created_at', { ascending: true });
 
             if (cancelled) return;
 
-            if (data) {
+            if (attachmentError) {
+                console.warn('Attachment metadata load unavailable (table may not exist yet):', attachmentError);
+            }
+
+            if (messageRows) {
+                const filesByMessageId = new Map();
+                for (const row of attachmentRows || []) {
+                    if (!row?.message_id) continue;
+                    if (!filesByMessageId.has(row.message_id)) filesByMessageId.set(row.message_id, []);
+                    filesByMessageId.get(row.message_id).push(row.original_name);
+                }
+
                 // Parse the DB rows back into the frontend schema
-                const formatted = data.map(msg => ({
+                const formatted = messageRows.map(msg => ({
                     id: msg.id,
                     type: msg.role,
                     text: msg.content,
-                    files: [] // For simplicity in this demo
+                    files: filesByMessageId.get(msg.id) || []
                 }));
                 // We ensure historical completed agent messages always have the deployment block state active
                 // For simplicity in this demo, all agent messages are assumed to have reached phase 2 completion
@@ -391,6 +421,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
                     } : msg
                 );
                 setMessages(withMockData);
+                setInterfaceThreadContextFromMessages(activeThread, withMockData);
+                mergeThreadFileMetadata(activeThread, attachmentRows || []);
             }
             if (!cancelled) setIsMessagesLoading(false);
         };
@@ -405,7 +437,12 @@ export default function ChatPage({ theme, onThemeToggle }) {
         setInput(prev => prev ? prev + ' ' + text : text);
     });
 
-    const handleLogout = () => { logout(); navigate('/'); };
+    const handleLogout = () => {
+        clearAllInterfaceThreadContexts();
+        clearAllThreadFileContexts();
+        logout();
+        navigate('/');
+    };
 
     const handleNewThread = () => {
         isGeneratingRef.current = false;
@@ -420,6 +457,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
 
     const handleDeleteThread = async (e, id) => {
         e.stopPropagation();
+        clearInterfaceThreadContext(id);
+        clearThreadFileContext(id);
         setThreads(t => t.filter(x => x.id !== id));
         if (activeThread === id) {
             setActiveThread(null);
@@ -502,6 +541,24 @@ export default function ChatPage({ theme, onThemeToggle }) {
         cancelEditThreadTitle();
     };
 
+    const saveMessageAttachmentMetadata = async (threadId, messageId, files, userId) => {
+        if (!threadId || !messageId || !userId || !files?.length) return;
+
+        const rows = files.map((file) => ({
+            thread_id: threadId,
+            message_id: messageId,
+            user_id: userId,
+            original_name: file.name,
+            mime_type: file.type || null,
+            size_bytes: file.size ?? null,
+        }));
+
+        const { error } = await supabase.from('message_attachments').insert(rows);
+        if (error) {
+            console.warn('Failed to persist attachment metadata', error);
+        }
+    };
+
     const autoRenameThreadFromBuildPrompt = async (threadId, promptText) => {
         if (!threadId || !promptText?.trim()) return;
 
@@ -526,9 +583,11 @@ export default function ChatPage({ theme, onThemeToggle }) {
     };
 
     const sendMessage = async (text) => {
-        if (!text || isGeneratingRef.current || !user) return;
+        if ((!text && attachedFiles.length === 0) || isGeneratingRef.current || !user) return;
 
         isGeneratingRef.current = true;
+        const filesForThisSend = [...attachedFiles];
+        const userMessageContent = text || (filesForThisSend.length ? 'Attached context files.' : '');
 
         let threadId = activeThread;
         const hadExistingBuild = messages.some((m) => m.type === 'agent');
@@ -536,7 +595,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
 
         // Create new thread if none active
         if (!threadId) {
-            const generatedTitle = await generateThreadTitle(text);
+            const generatedTitle = await generateThreadTitle(text || 'Context files upload');
             const { data, error } = await supabase.from('threads').insert({
                 user_id: user.id,
                 title: generatedTitle
@@ -555,21 +614,49 @@ export default function ChatPage({ theme, onThemeToggle }) {
         }
 
         // Add user message to UI
-        setMessages(m => [...m, { type: 'user', text, files: attachedFiles.map(f => f.name) }]);
+        setMessages(m => [...m, { type: 'user', text: userMessageContent, files: filesForThisSend.map(f => f.name) }]);
+        if (text) {
+            appendInterfaceThreadContext(threadId, { role: 'user', content: text });
+        }
         setAttachedFiles([]);
         setIsTyping(true);
 
-        // Save user message to DB
-        await supabase.from('messages').insert({
-            thread_id: threadId,
-            user_id: user.id,
-            role: 'user',
-            content: text
-        });
+        // Keep file context separate from chat text history. This is reused later if the user
+        // triggers a build in the same thread.
+        if (filesForThisSend.length > 0) {
+            await ingestThreadFiles(threadId, filesForThisSend);
+        }
+
+        let savedUserMessageId = null;
+        if (userMessageContent) {
+            // Save user message to DB
+            const { data: savedUserMessage, error: saveMessageError } = await supabase.from('messages').insert({
+                thread_id: threadId,
+                user_id: user.id,
+                role: 'user',
+                content: userMessageContent
+            }).select('id').single();
+            if (saveMessageError) {
+                console.warn('Failed to persist user message', saveMessageError);
+            } else {
+                savedUserMessageId = savedUserMessage?.id || null;
+            }
+        }
+
+        if (filesForThisSend.length > 0 && savedUserMessageId) {
+            await saveMessageAttachmentMetadata(threadId, savedUserMessageId, filesForThisSend, user.id);
+        }
 
         let interfaceDecision = null;
         try {
-            interfaceDecision = await routeChatIntent(text);
+            const cachedContext = getInterfaceThreadContext(threadId);
+            const fallbackUiContext = messages
+                .map((m) => ({ role: m.type, content: m.text }))
+                .filter((m) => ['user', 'assistant', 'agent'].includes(m.role) && m.content);
+            interfaceDecision = await routeChatIntent(text, {
+                recentMessages: cachedContext.length ? cachedContext : fallbackUiContext,
+                attachmentSummaries: getThreadFileContextSummaries(threadId),
+            });
         } catch (error) {
             console.warn('Interface routing unavailable, falling back to mock pipeline:', error);
         }
@@ -579,6 +666,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
 
             setIsTyping(false);
             setMessages(m => [...m, { type: 'assistant', text: assistantReply }]);
+            appendInterfaceThreadContext(threadId, { role: 'assistant', content: assistantReply });
 
             await supabase.from('messages').insert({
                 thread_id: threadId,
@@ -595,6 +683,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
 
         if (interfaceDecision?.should_trigger_pipeline === true) {
             const assistantReply = (interfaceDecision.assistant_reply || '').trim();
+            const buildContextFiles = getThreadBuildContextFiles(threadId);
 
             // If the user started with small talk and later asks for a build,
             // retitle the thread from the first real build request.
@@ -602,8 +691,13 @@ export default function ChatPage({ theme, onThemeToggle }) {
                 void autoRenameThreadFromBuildPrompt(threadId, text);
             }
 
+            // Placeholder for future real orchestrator wiring: thread-level file context is
+            // available here without bloating the interface agent prompt with raw file contents.
+            void buildContextFiles;
+
             if (assistantReply) {
                 setMessages(m => [...m, { type: 'assistant', text: assistantReply }]);
+                appendInterfaceThreadContext(threadId, { role: 'assistant', content: assistantReply });
 
                 await supabase.from('messages').insert({
                     thread_id: threadId,
@@ -663,6 +757,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                 role: 'agent',
                 content: AGENT_FINAL.text
             });
+            appendInterfaceThreadContext(threadId, { role: 'agent', content: AGENT_FINAL.text });
 
             isGeneratingRef.current = false;
 
@@ -713,6 +808,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
             role: 'agent',
             content: AGENT_FINAL.text
         });
+        appendInterfaceThreadContext(activeThread, { role: 'agent', content: AGENT_FINAL.text });
 
         isGeneratingRef.current = false;
     };

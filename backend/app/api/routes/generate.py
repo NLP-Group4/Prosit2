@@ -3,11 +3,16 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlmodel import Session
 from sse_starlette.sse import EventSourceResponse
 
-from app.agent.interface import InterfaceAgent, InterfaceDecision
+from app.agent.interface import (
+    InterfaceAgent,
+    InterfaceAttachmentSummary,
+    InterfaceContextMessage,
+    InterfaceDecision,
+)
 from app.agent.orchestrator import run_pipeline_generator
 from app.api.deps import CurrentUser, get_db
 from app.crud import create_generation_run
@@ -19,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 class InterfacePromptRequest(BaseModel):
     prompt: str
+    recent_messages: list[InterfaceContextMessage] = Field(default_factory=list)
+    attachment_summaries: list[InterfaceAttachmentSummary] = Field(default_factory=list)
 
 
 @router.post("/interface", response_model=InterfaceDecision)
@@ -28,7 +35,11 @@ async def route_interface_prompt(payload: InterfacePromptRequest) -> InterfaceDe
     Returns a normal conversational reply or a pipeline-routing decision.
     """
     try:
-        return await InterfaceAgent().run(payload.prompt)
+        return await InterfaceAgent().run(
+            payload.prompt,
+            recent_messages=payload.recent_messages,
+            attachment_summaries=payload.attachment_summaries,
+        )
     except Exception as exc:
         logger.warning("Interface-only route failed; returning pipeline fallback: %s", exc)
         return InterfaceDecision(

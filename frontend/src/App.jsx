@@ -19,6 +19,7 @@ function ProtectedRoute({ children }) {
 }
 
 function AppRoutes() {
+  const { user } = useAuth();
   const [loginOpen, setLoginOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('interius-theme') || 'light');
 
@@ -35,12 +36,16 @@ function AppRoutes() {
         <Route
           path="/"
           element={
-            <LandingPage
-              loginOpen={loginOpen}
-              setLoginOpen={setLoginOpen}
-              theme={theme}
-              onThemeToggle={toggleTheme}
-            />
+            user ? (
+              <Navigate to="/chat" replace />
+            ) : (
+              <LandingPage
+                loginOpen={loginOpen}
+                setLoginOpen={setLoginOpen}
+                theme={theme}
+                onThemeToggle={toggleTheme}
+              />
+            )
           }
         />
         <Route

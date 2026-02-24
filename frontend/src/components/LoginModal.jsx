@@ -30,7 +30,7 @@ export default function LoginModal({ isOpen, onClose }) {
                 await signIn(email, password);
             }
             onClose();
-            navigate('/chat');
+            navigate('/chat', { replace: true });
         } catch (err) {
             setError(err.message || 'Authentication failed');
         } finally {
