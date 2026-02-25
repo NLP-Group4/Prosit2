@@ -217,7 +217,23 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
             "good morning",
             "good afternoon",
             "good evening",
+            "good day",
         }
+
+        if (
+            "who are you" in normalized
+            or "what do you do" in normalized
+            or ("who are you" in normalized and "what" in normalized)
+        ):
+            return InterfaceDecision(
+                intent="context_question",
+                should_trigger_pipeline=False,
+                assistant_reply=(
+                    "I'm Interius. I can answer questions directly, help clarify requirements, "
+                    "and start the build pipeline when you want APIs, code, schemas, configs, or related backend artifacts."
+                ),
+                pipeline_prompt=None,
+            )
 
         if normalized in gratitude_tokens or normalized.rstrip("!.") in gratitude_tokens:
             return InterfaceDecision(
@@ -231,7 +247,7 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
             return InterfaceDecision(
                 intent="social",
                 should_trigger_pipeline=False,
-                assistant_reply="Hi. Tell me what you need help with, and Interius will either answer directly or start the pipeline if it's a build request.",
+                assistant_reply="Hi. Tell me what you need help with, and I can answer directly or start the build pipeline if you want me to generate something.",
                 pipeline_prompt=None,
             )
 

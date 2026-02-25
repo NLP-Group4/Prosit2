@@ -1,3 +1,5 @@
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
+
 const FILE_CTX_PREFIX = 'interius_thread_file_ctx:';
 const FILE_CTX_TTL_MS = 30 * 60 * 1000;
 const FILE_CTX_MAX_ENTRIES = 12;
@@ -72,7 +74,12 @@ function looksPdf(file) {
 
 async function getPdfJsModule() {
     if (!pdfJsModulePromise) {
-        pdfJsModulePromise = import('pdfjs-dist/legacy/build/pdf.mjs');
+        pdfJsModulePromise = import('pdfjs-dist/legacy/build/pdf.mjs').then((mod) => {
+            if (mod?.GlobalWorkerOptions && !mod.GlobalWorkerOptions.workerSrc) {
+                mod.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+            }
+            return mod;
+        });
     }
     return pdfJsModulePromise;
 }
@@ -82,6 +89,7 @@ async function extractPdfText(file) {
     const data = new Uint8Array(await file.arrayBuffer());
     const loadingTask = getDocument({
         data,
+        disableWorker: true,
         useWorkerFetch: false,
         isEvalSupported: false,
     });
@@ -147,7 +155,10 @@ async function buildEntryFromFile(file) {
             text_excerpt: sanitizeExcerpt(textContent),
             text_content: textContent,
         };
-    } catch {
+    } catch (error) {
+        if (looksPdf(file)) {
+            console.warn(`PDF text extraction failed for "${file.name}"`, error);
+        }
         return base;
     }
 }

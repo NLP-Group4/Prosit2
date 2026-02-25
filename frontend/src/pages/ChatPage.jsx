@@ -1142,7 +1142,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                                                 {isCurrent ? (
                                                                                     <span className="cp-run-spinner" />
                                                                                 ) : (
-                                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                                                                 )}
                                                                                 <span>{isCurrent ? step.text : step.doneText}</span>
                                                                             </div>
@@ -1182,8 +1182,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                                                     <span className="cp-run-spinner" />
                                                                                 ) : (
                                                                                     step.icon === 'deploy' ?
-                                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                                                                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLineJoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                                        : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                                                                 )}
                                                                                 <span>{isCurrent ? step.text : step.doneText}</span>
                                                                             </div>
