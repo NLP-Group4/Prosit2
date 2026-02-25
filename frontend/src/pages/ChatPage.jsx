@@ -559,11 +559,36 @@ export default function ChatPage({ theme, onThemeToggle }) {
         }
     };
 
+    const buildThreadTitleSeed = (threadId, promptText) => {
+        const prompt = (promptText || '').trim();
+        const summaries = getThreadFileContextSummaries(threadId).slice(-3);
+        if (!summaries.length) return prompt;
+
+        const fileContext = summaries.map((f) => {
+            const excerpt = (f.text_excerpt || '').trim();
+            return excerpt
+                ? `- ${f.filename}: ${excerpt}`
+                : `- ${f.filename} (${f.mime_type || 'unknown type'})`;
+        }).join('\n');
+
+        return [
+            'Generate a short thread title (3-4 words) for this software build request.',
+            'Use the user request and attached file context to infer what is being built.',
+            '',
+            'User request:',
+            prompt || '(no direct text prompt)',
+            '',
+            'Attached file context:',
+            fileContext,
+        ].join('\n');
+    };
+
     const autoRenameThreadFromBuildPrompt = async (threadId, promptText) => {
         if (!threadId || !promptText?.trim()) return;
 
         const previousTitle = threads.find((t) => t.id === threadId)?.title;
-        const nextTitle = (await generateThreadTitle(promptText))?.trim();
+        const titleSeed = buildThreadTitleSeed(threadId, promptText);
+        const nextTitle = (await generateThreadTitle(titleSeed))?.trim();
 
         if (!nextTitle || nextTitle === previousTitle) return;
 
@@ -687,7 +712,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
 
             // If the user started with small talk and later asks for a build,
             // retitle the thread from the first real build request.
-            if (!createdThreadThisSend && !hadExistingBuild) {
+            if (!hadExistingBuild) {
                 void autoRenameThreadFromBuildPrompt(threadId, text);
             }
 

@@ -28,6 +28,8 @@ Return a concise assistant reply:
 - Do not prefix replies with a speaker label like "Interius:".
 - If an attachment summary indicates `text=no`, Interius only knows the file metadata (not its contents yet).
   Be honest and ask the user to re-upload or paste the relevant portion if content is needed.
+- If a build is triggered and any attachment summary has `text=yes` with an excerpt, mention one concrete detail
+  from the attached context (briefly) so the acknowledgment shows Interius understood the file context.
 
 If `should_trigger_pipeline=true`, provide `pipeline_prompt` as a cleaned version of the request suitable
 for downstream agents. If false, set `pipeline_prompt` to null.
@@ -114,7 +116,7 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
             user_prompt=self._build_user_prompt(text, recent_messages, attachment_summaries),
             response_schema=InterfaceDecision,
         )
-        return self._normalize_decision(text, decision)
+        return self._normalize_decision(text, decision, attachment_summaries)
 
     @staticmethod
     def _build_user_prompt(
@@ -171,12 +173,19 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
         return "\n\n".join(sections)
 
     @staticmethod
-    def _normalize_decision(original_prompt: str, decision: InterfaceDecision) -> InterfaceDecision:
+    def _normalize_decision(
+        original_prompt: str,
+        decision: InterfaceDecision,
+        attachment_summaries: list[InterfaceAttachmentSummary] | None = None,
+    ) -> InterfaceDecision:
         assistant_reply = (decision.assistant_reply or "").strip()
         assistant_reply = re.sub(r"^\s*Interius:\s*", "", assistant_reply, flags=re.IGNORECASE)
 
         if decision.should_trigger_pipeline:
             pipeline_prompt = (decision.pipeline_prompt or "").strip() or original_prompt.strip()
+            assistant_reply = InterfaceAgent._enrich_build_ack_with_attachment_context(
+                assistant_reply, attachment_summaries
+            )
             return decision.model_copy(
                 update={
                     "intent": "pipeline_request",
@@ -191,6 +200,42 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
                 "pipeline_prompt": None,
             }
         )
+
+    @staticmethod
+    def _enrich_build_ack_with_attachment_context(
+        assistant_reply: str,
+        attachment_summaries: list[InterfaceAttachmentSummary] | None,
+    ) -> str:
+        reply = (assistant_reply or "").strip()
+        file_with_text = next(
+            (
+                f for f in (attachment_summaries or [])
+                if f.has_text_content and (f.text_excerpt or "").strip()
+            ),
+            None,
+        )
+        if not file_with_text:
+            return reply or "Interius is starting generation for your request."
+
+        excerpt = re.sub(r"\s+", " ", (file_with_text.text_excerpt or "")).strip()
+        excerpt = excerpt[:140].rstrip(" ,;:-")
+        if not excerpt:
+            return reply or "Interius is starting generation for your request."
+
+        evidence_line = (
+            f'I can see context in `{file_with_text.filename}` (for example: "{excerpt}").'
+        )
+        if not reply:
+            return "Interius is starting generation for your request. " + evidence_line
+
+        if evidence_line.lower() in reply.lower():
+            return reply
+
+        # Avoid repetitive over-long acknowledgements.
+        if len(reply) > 260:
+            return reply
+
+        return f"{reply.rstrip()} {evidence_line}"
 
     @staticmethod
     def _quick_non_pipeline(text: str) -> InterfaceDecision | None:
