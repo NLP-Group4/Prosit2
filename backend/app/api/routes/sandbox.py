@@ -179,7 +179,7 @@ echo $! > /sandbox/uvicorn.pid
         result = subprocess.run(
             [
                 "docker", "exec", "-d",
-                "craftlive-sandbox-runner-1",
+                "prosit2-sandbox-runner-1",
                 "bash", f"/sandbox/{project_id}/start.sh",
             ],
             capture_output=True,
@@ -203,6 +203,31 @@ echo $! > /sandbox/uvicorn.pid
         message=f"API deployed to sandbox. {len(files)} files written.",
         swagger_url="http://localhost:9000/docs",
     )
+
+
+from sqlmodel import select
+from app.api.routes.generate import _chat_thread_project_marker, _get_or_create_chat_bridge_user
+
+@router.post("/deploy-by-thread/{thread_id}", response_model=SandboxStatus)
+def deploy_to_sandbox_by_thread(
+    thread_id: str,
+    session: Session = Depends(get_db),
+) -> Any:
+    """Deploy generated code to the sandbox using a chat thread ID."""
+    current_user = _get_or_create_chat_bridge_user(session)
+    marker = _chat_thread_project_marker(thread_id)
+    project = session.exec(
+        select(Project).where(
+            Project.owner_id == current_user.id,
+            Project.description == marker,
+        )
+    ).first()
+    
+    if not project:
+        raise HTTPException(status_code=404, detail="No project found for this chat thread.")
+        
+    return deploy_to_sandbox(project.id, session=session, current_user=current_user)
+
 
 
 @router.get("/status", response_model=SandboxStatus)

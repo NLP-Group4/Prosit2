@@ -1,0 +1,20 @@
+services:
+  backend:
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/backend/app
+      - ./backend/alembic:/app/backend/alembic
+      - ./backend/scripts:/app/backend/scripts
+    command: fastapi run --reload --workers 1 --host 0.0.0.0 --port 8000 app/main.py
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

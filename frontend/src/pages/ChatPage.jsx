@@ -934,6 +934,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
     const [autoApprove, setAutoApprove] = useState(true);
     const [runtimePreviewFiles, setRuntimePreviewFiles] = useState({});
     const [copyPreviewStatus, setCopyPreviewStatus] = useState('idle');
+    const [sandboxStatus, setSandboxStatus] = useState('idle');
+    const [sandboxUrl, setSandboxUrl] = useState('');
 
     const modelDropdownRef = useRef(null);
 
@@ -974,6 +976,33 @@ export default function ChatPage({ theme, onThemeToggle }) {
         setPreviewFile(null);
         setPanelMode('tester');
     }, []);
+
+    const openSandboxPanel = useCallback(() => {
+        setPreviewFile(null);
+        setPanelMode('sandbox');
+    }, []);
+
+    const deployToSandbox = async (threadId) => {
+        setSandboxStatus('deploying');
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/sandbox/deploy-by-thread/${threadId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token || ''}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!res.ok) throw new Error('Failed to deploy sandbox');
+            const data = await res.json();
+            setSandboxStatus('running');
+            setSandboxUrl(data.swagger_url);
+            openSandboxPanel();
+        } catch (err) {
+            console.error(err);
+            setSandboxStatus('error');
+        }
+    };
 
     const buildResumeCheckpointFromMessage = (msg, promptText) => {
         if (!msg) return null;
@@ -3158,26 +3187,35 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                                 </div>
                                                             )}
 
-                                                            {/* Always show deployment blocks for completed pipeline phases, regardless of explicit payload flags */}
-                                                            {msg.status === 'completed' && msg.phase >= 2 && msg.runMode !== 'real' && (
+                                                            {/* Sandbox Deployment UI */}
+                                                            {msg.status === 'completed' && msg.phase >= 2 && (
                                                                 <div className="cp-deployment-blocks">
                                                                     <div className="cp-deploy-block">
                                                                         <div className="cp-deploy-content">
-                                                                            Use the interactive API playground to test your generated endpoints.
+                                                                            Deploy this backend to the Live API Sandbox to test actual endpoints.
+                                                                            {sandboxStatus === 'error' && <span style={{ color: 'var(--text-danger)', marginLeft: 8 }}>Deploy failed.</span>}
                                                                         </div>
-                                                                        <button className="cp-action-btn cp-action-tester" onClick={openTesterPanel}>
-                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                                                                            Test API Endpoints
-                                                                        </button>
-                                                                    </div>
-                                                                    <div className="cp-deploy-block">
-                                                                        <div className="cp-deploy-content">
-                                                                            Your backend has been packaged and containerized via <a href="https://hub.docker.com/" target="_blank" className="cp-tree-link">dockerhub ↗</a> and deployed to production.
+                                                                        <div className="cp-deploy-actions" style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                                                            <button className="cp-action-btn cp-action-tester" onClick={openTesterPanel}>
+                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                                                                                Mock Tester
+                                                                            </button>
+                                                                            {sandboxStatus === 'deploying' ? (
+                                                                                <button className="cp-action-btn cp-action-live loading" disabled style={{ opacity: 0.7 }}>
+                                                                                    <span className="ep-spinner" /> Deploying...
+                                                                                </button>
+                                                                            ) : sandboxStatus === 'running' ? (
+                                                                                <button className="cp-action-btn cp-action-live" onClick={openSandboxPanel}>
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                                                                                    Open Sandbox
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button className="cp-action-btn cp-action-live" onClick={() => deployToSandbox(activeThread)}>
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                                                                                    Run Sandbox
+                                                                                </button>
+                                                                            )}
                                                                         </div>
-                                                                        <a className="cp-action-btn cp-action-live" href="https://app.interius.dev" target="_blank" rel="noopener noreferrer">
-                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
-                                                                            View Live API
-                                                                        </a>
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -3409,6 +3447,18 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                         {ENDPOINTS.map(ep => <EndpointCard key={ep.id} ep={ep} />)}
                                     </div>
                                 </>
+                            )}
+
+                            {panelMode === 'sandbox' && sandboxUrl && (
+                                <div className="cp-rp-iframe-wrapper" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                    <div className="cp-ide-toolbar">
+                                        <span className="cp-ide-filename">Live API Sandbox</span>
+                                        <a href={sandboxUrl} target="_blank" rel="noopener noreferrer" className="cp-action-btn" style={{ marginLeft: 'auto', padding: '6px 10px' }}>
+                                            Open in new tab ↗
+                                        </a>
+                                    </div>
+                                    <iframe src={sandboxUrl} style={{ flex: 1, border: 'none', background: '#fff' }} title="Sandbox Swagger UI" />
+                                </div>
                             )}
 
                             {panelMode === 'file' && previewFile && (

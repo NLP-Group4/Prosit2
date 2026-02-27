@@ -1,0 +1,54 @@
+name: prosit2
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    platform: linux/amd64
+    ports:
+      - "8000:8000"
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+    env_file:
+      - .env.local
+    volumes:
+      - sandbox-data:/sandbox
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+
+  sandbox-runner:
+    image: python:3.12-slim
+    command: >
+      bash -c "
+      apt-get update && apt-get install -y procps curl &&
+      echo 'Sandbox runner waiting for deployments...' &&
+      while true; do
+        for deploy_file in /sandbox/*/.deploy; do
+          if [ -f \"\$$deploy_file\" ]; then
+            project_dir=\$\(dirname \"\$$deploy_file\"\)
+            echo 'Found deploy signal in \$$project_dir'
+            rm -f \"\$$deploy_file\"
+            if [ -f \"\$$project_dir/start.sh\" ]; then
+              bash \"\$$project_dir/start.sh\"
+            fi
+          fi
+        done
+        sleep 2
+      done
+      "
+    ports:
+      - "9000:9000"
+    volumes:
+      - sandbox-data:/sandbox
+
+volumes:
+  sandbox-data:
