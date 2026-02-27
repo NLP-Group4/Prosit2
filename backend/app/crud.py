@@ -12,8 +12,12 @@ def create_user(*, session: Session, user_create: UserCreate) -> User:
         user_create, update={"hashed_password": get_password_hash(user_create.password)}
     )
     session.add(db_obj)
-    session.commit()
-    session.refresh(db_obj)
+    try:
+        session.commit()
+        session.refresh(db_obj)
+    except Exception:
+        session.rollback()
+        raise
     return db_obj
 
 
@@ -26,8 +30,12 @@ def update_user(*, session: Session, db_user: User, user_in: UserUpdate) -> Any:
         extra_data["hashed_password"] = hashed_password
     db_user.sqlmodel_update(user_data, update=extra_data)
     session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
+    try:
+        session.commit()
+        session.refresh(db_user)
+    except Exception:
+        session.rollback()
+        raise
     return db_user
 
 
@@ -55,8 +63,12 @@ def authenticate(*, session: Session, email: str, password: str) -> User | None:
     if updated_password_hash:
         db_user.hashed_password = updated_password_hash
         session.add(db_user)
-        session.commit()
-        session.refresh(db_user)
+        try:
+            session.commit()
+            session.refresh(db_user)
+        except Exception:
+            session.rollback()
+            raise
     return db_user
 
 
@@ -79,15 +91,23 @@ from app.models import Project, ProjectCreate, GenerationRun, GenerationRunCreat
 def create_project(*, session: Session, project_in: ProjectCreate, owner_id: uuid.UUID) -> Project:
     db_project = Project.model_validate(project_in, update={"owner_id": owner_id})
     session.add(db_project)
-    session.commit()
-    session.refresh(db_project)
+    try:
+        session.commit()
+        session.refresh(db_project)
+    except Exception:
+        session.rollback()
+        raise
     return db_project
 
 def create_generation_run(*, session: Session, run_in: GenerationRunCreate) -> GenerationRun:
     db_run = GenerationRun.model_validate(run_in)
     session.add(db_run)
-    session.commit()
-    session.refresh(db_run)
+    try:
+        session.commit()
+        session.refresh(db_run)
+    except Exception:
+        session.rollback()
+        raise
     return db_run
 
 def update_generation_run_status(*, session: Session, run_id: uuid.UUID, status: str) -> GenerationRun | None:
@@ -95,14 +115,22 @@ def update_generation_run_status(*, session: Session, run_id: uuid.UUID, status:
     if db_run:
         db_run.status = status
         session.add(db_run)
-        session.commit()
-        session.refresh(db_run)
+        try:
+            session.commit()
+            session.refresh(db_run)
+        except Exception:
+            session.rollback()
+            raise
     return db_run
 
 def create_artifact_record(*, session: Session, artifact_in: ArtifactRecordCreate) -> ArtifactRecord:
     db_artifact = ArtifactRecord.model_validate(artifact_in)
     session.add(db_artifact)
-    session.commit()
-    session.refresh(db_artifact)
+    try:
+        session.commit()
+        session.refresh(db_artifact)
+    except Exception:
+        session.rollback()
+        raise
     return db_artifact
 

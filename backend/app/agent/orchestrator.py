@@ -5,6 +5,7 @@ import uuid
 from sqlmodel import Session
 
 from app.agent.architecture_agent import ArchitectureAgent
+from app.agent.artifact_store import store_code_bundle
 from app.agent.artifacts import GeneratedCode, ProjectCharter, SystemArchitecture
 from app.agent.implementer_agent import ImplementerAgent
 from app.agent.requirements_agent import RequirementsAgent
@@ -13,6 +14,70 @@ from app.crud import create_artifact_record, update_generation_run_status
 from app.models import ArtifactRecordCreate
 
 logger = logging.getLogger(__name__)
+
+
+def _rollback_session_safely(session: Session) -> None:
+    try:
+        session.rollback()
+    except Exception as exc:
+        logger.warning("Session rollback failed: %s", exc)
+
+
+def _update_run_status_safely(session: Session, run_id: uuid.UUID, status: str) -> None:
+    try:
+        update_generation_run_status(session=session, run_id=run_id, status=status)
+    except Exception as exc:
+        logger.warning("Failed to update generation run %s to %s: %s", run_id, status, exc)
+
+
+def _compact_generated_code_for_db(
+    *,
+    run_id: uuid.UUID,
+    stage: str,
+    code: GeneratedCode,
+) -> dict:
+    bundle_ref = store_code_bundle(
+        run_id=run_id,
+        stage=stage,
+        files=code.files,
+        dependencies=code.dependencies,
+    )
+    return {
+        "bundle_ref": bundle_ref,
+        "files_count": len(code.files),
+        "paths": [file.path for file in code.files],
+        "dependencies": code.dependencies,
+    }
+
+
+def _compact_review_for_db(
+    *,
+    run_id: uuid.UUID,
+    stage: str,
+    review_artifact: dict,
+    dependencies: list[str],
+) -> dict:
+    final_code = list(review_artifact.get("final_code") or [])
+    compact_artifact = dict(review_artifact)
+    if not final_code:
+        return compact_artifact
+
+    bundle_ref = store_code_bundle(
+        run_id=run_id,
+        stage=stage,
+        files=final_code,
+        dependencies=dependencies,
+    )
+    compact_artifact["bundle_ref"] = bundle_ref
+    compact_artifact["final_code"] = []
+    compact_artifact["final_code_files_count"] = len(final_code)
+    compact_artifact["paths"] = [
+        file.get("path")
+        for file in final_code
+        if isinstance(file, dict) and file.get("path")
+    ]
+    compact_artifact["dependencies"] = dependencies
+    return compact_artifact
 
 async def run_pipeline_generator(
     session: Session,
@@ -29,7 +94,7 @@ async def run_pipeline_generator(
     and yields SSE events for the frontend.
     """
     yield json.dumps({"status": "starting", "message": "Initializing pipeline..."})
-    update_generation_run_status(session=session, run_id=run_id, status="running")
+    _update_run_status_safely(session=session, run_id=run_id, status="running")
 
     try:
         # 1. RAG Context (Temporarily disabled for model testing)
@@ -97,7 +162,11 @@ async def run_pipeline_generator(
             artifact_in=ArtifactRecordCreate(
                 run_id=run_id,
                 stage="implementer",
-                content=code.model_dump()
+                content=_compact_generated_code_for_db(
+                    run_id=run_id,
+                    stage="implementer",
+                    code=code,
+                ),
             )
         )
         yield json.dumps({
@@ -137,7 +206,12 @@ async def run_pipeline_generator(
                     artifact_in=ArtifactRecordCreate(
                         run_id=run_id,
                         stage=f"reviewer_pass_{attempt}",
-                        content=review_artifact_for_completion
+                        content=_compact_review_for_db(
+                            run_id=run_id,
+                            stage=f"reviewer_pass_{attempt}",
+                            review_artifact=review_artifact_for_completion,
+                            dependencies=code.dependencies,
+                        ),
                     )
                 )
 
@@ -277,9 +351,10 @@ async def run_pipeline_generator(
             "message": "Pipeline finished successfully!",
             "artifact": review_artifact_for_completion,
         })
-        update_generation_run_status(session=session, run_id=run_id, status="completed")
+        _update_run_status_safely(session=session, run_id=run_id, status="completed")
 
     except Exception as e:
         logger.error(f"Pipeline error: {e}", exc_info=True)
+        _rollback_session_safely(session)
         yield json.dumps({"status": "error", "message": str(e)})
-        update_generation_run_status(session=session, run_id=run_id, status="failed")
+        _update_run_status_safely(session=session, run_id=run_id, status="failed")

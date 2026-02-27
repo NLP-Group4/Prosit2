@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlmodel import Session
 
+from app.agent.artifact_store import load_code_bundle
 from app.api.deps import CurrentUser, get_db
 from app.models import Project, ArtifactRecord, GenerationRun
 
@@ -63,7 +64,26 @@ def _get_latest_code(session: Session, project_id: uuid.UUID) -> dict | None:
             "files": reviewer_artifact.content["final_code"],
             "dependencies": implementer_artifact.content.get("dependencies", []) if implementer_artifact else [],
         }
+    if reviewer_artifact and reviewer_artifact.content.get("bundle_ref"):
+        bundle = load_code_bundle(str(reviewer_artifact.content["bundle_ref"]))
+        if bundle and bundle.get("files"):
+            return {
+                "files": bundle.get("files", []),
+                "dependencies": bundle.get("dependencies")
+                or reviewer_artifact.content.get("dependencies", [])
+                or implementer_artifact.content.get("dependencies", [])
+                or [],
+            }
     elif implementer_artifact:
+        if implementer_artifact.content.get("bundle_ref"):
+            bundle = load_code_bundle(str(implementer_artifact.content["bundle_ref"]))
+            if bundle and bundle.get("files"):
+                return {
+                    "files": bundle.get("files", []),
+                    "dependencies": bundle.get("dependencies")
+                    or implementer_artifact.content.get("dependencies", [])
+                    or [],
+                }
         return implementer_artifact.content
     return None
 
