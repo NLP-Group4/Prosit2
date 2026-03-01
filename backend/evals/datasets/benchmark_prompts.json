@@ -1,0 +1,37 @@
+[
+  {
+    "id": "simple_todo",
+    "prompt": "Build a simple TODO API with CRUD operations for tasks. Each task has a title, description, and completed status.",
+    "complexity": "simple",
+    "expected_entities": ["Task"],
+    "expected_endpoints_min": 4
+  },
+  {
+    "id": "bookstore",
+    "prompt": "Create a bookstore API with books, authors, and reviews. Books belong to authors. Users can leave reviews with a rating (1-5) and comment.",
+    "complexity": "medium",
+    "expected_entities": ["Book", "Author", "Review"],
+    "expected_endpoints_min": 8
+  },
+  {
+    "id": "auth_api",
+    "prompt": "Build a user authentication API with JWT tokens. Include user registration, login, profile retrieval, and password change endpoints.",
+    "complexity": "medium",
+    "expected_entities": ["User"],
+    "expected_endpoints_min": 4
+  },
+  {
+    "id": "blog_platform",
+    "prompt": "Create a blog platform API with posts, comments, tags, and categories. Posts can have multiple tags. Comments belong to posts. Include pagination on list endpoints.",
+    "complexity": "complex",
+    "expected_entities": ["Post", "Comment", "Tag", "Category"],
+    "expected_endpoints_min": 10
+  },
+  {
+    "id": "inventory",
+    "prompt": "Build an inventory management API with products, categories, and stock movements. Track stock levels with an audit trail of additions and removals.",
+    "complexity": "complex",
+    "expected_entities": ["Product", "Category", "StockMovement"],
+    "expected_endpoints_min": 8
+  }
+]

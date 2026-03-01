@@ -12,6 +12,17 @@ logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
+# Generous timeout for large structured generation calls (architecture, implementer).
+_DEFAULT_TIMEOUT = 120.0
+_DEFAULT_MAX_RETRIES = 3
+
+
+def _strip_think_tags(text: str) -> str:
+    """Strip out reasoning tokens like <think>...</think> from models like DeepSeek-R1."""
+    if not text:
+        return ""
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL | re.IGNORECASE).strip()
+
 
 def _extract_fenced_block(text: str) -> str | None:
     blocks = re.findall(r"```(?:json)?\s*(.*?)\s*```", text, re.DOTALL | re.IGNORECASE)
@@ -122,6 +133,8 @@ class LLMClient:
         self.client = AsyncOpenAI(
             base_url=resolved_base_url,
             api_key=resolved_api_key,
+            timeout=_DEFAULT_TIMEOUT,
+            max_retries=_DEFAULT_MAX_RETRIES,
         )
 
     def _chat_completion_kwargs(self, *, temperature: float | None) -> dict:
@@ -135,7 +148,7 @@ class LLMClient:
         return {"temperature": temperature}
 
     async def generate_structured(
-        self, system_prompt: str, user_prompt: str, response_schema: type[T]
+        self, system_prompt: str, user_prompt: str, response_schema: type[T], task_name: str | None = None
     ) -> T:
         """
         Generate a structured response matching the provided Pydantic schema.
@@ -161,10 +174,12 @@ class LLMClient:
         ]
 
         last_error: Exception | None = None
+        task_str = f" for task '{task_name}'" if task_name else ""
         for attempt_idx, system_prompt_attempt in enumerate(attempt_prompts, start=1):
             try:
                 logger.info(
-                    "Issuing structured request to model %s (attempt %s/%s)...",
+                    "Issuing structured request%s to model %s (attempt %s/%s)...",
+                    task_str,
                     self.model_name,
                     attempt_idx,
                     len(attempt_prompts),
@@ -203,6 +218,7 @@ class LLMClient:
                     )
 
                 text_response = response.choices[0].message.content or ""
+                text_response = _strip_think_tags(text_response)
 
                 parse_candidates = _structured_text_candidates(text_response)
                 if not parse_candidates:
@@ -242,7 +258,7 @@ class LLMClient:
             raise last_error
         raise RuntimeError("Structured generation failed without a captured error")
 
-    async def generate_text(self, system_prompt: str, user_prompt: str, *, temperature: float = 0.2) -> str:
+    async def generate_text(self, system_prompt: str, user_prompt: str, *, temperature: float = 0.2, task_name: str | None = None) -> str:
         """
         Generate plain text content (used for per-file code generation to avoid giant JSON payloads).
         Returns stripped text and removes markdown code fences if the model wraps the response.
@@ -256,10 +272,12 @@ class LLMClient:
                 "and no explanation."
             ),
         ]
+        task_str = f" for task '{task_name}'" if task_name else ""
         for attempt_idx, system_prompt_attempt in enumerate(prompts, start=1):
             try:
                 logger.info(
-                    "Issuing text request to model %s (attempt %s/%s)...",
+                    "Issuing text request%s to model %s (attempt %s/%s)...",
+                    task_str,
                     self.model_name,
                     attempt_idx,
                     len(prompts),
@@ -277,6 +295,7 @@ class LLMClient:
                 if not getattr(response, "choices", None):
                     raise ValueError("Provider returned no output")
                 text_response = (response.choices[0].message.content or "").strip()
+                text_response = _strip_think_tags(text_response)
                 text_response = _strip_code_fences(text_response)
                 if not text_response:
                     raise ValueError("Model returned empty content")
@@ -310,6 +329,7 @@ class LLMClient:
         user_prompt: str,
         *,
         temperature: float = 0.2,
+        task_name: str | None = None,
     ) -> str:
         """
         Generate a plain-language answer without code-fence bias or file-content retry instructions.
@@ -323,10 +343,12 @@ class LLMClient:
                 "Do not use markdown code fences or unrelated preamble."
             ),
         ]
+        task_str = f" for task '{task_name}'" if task_name else ""
         for attempt_idx, system_prompt_attempt in enumerate(prompts, start=1):
             try:
                 logger.info(
-                    "Issuing plain-text request to model %s (attempt %s/%s)...",
+                    "Issuing plain-text request%s to model %s (attempt %s/%s)...",
+                    task_str,
                     self.model_name,
                     attempt_idx,
                     len(prompts),
@@ -344,6 +366,7 @@ class LLMClient:
                 if not getattr(response, "choices", None):
                     raise ValueError("Provider returned no output")
                 text_response = (response.choices[0].message.content or "").strip()
+                text_response = _strip_think_tags(text_response)
                 text_response = _strip_code_fences(text_response)
                 if not text_response:
                     raise ValueError("Model returned empty content")

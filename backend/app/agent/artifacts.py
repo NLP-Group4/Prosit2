@@ -110,8 +110,17 @@ class ReviewReport(BaseModel):
     )
 
 
+class GeneratedTests(BaseModel):
+    """Artifact produced by the TestGenerator Agent."""
+    test_files: list[CodeFile] = Field(description="Generated pytest test files")
+    dependencies: list[str] = Field(
+        default_factory=lambda: ["pytest", "httpx"],
+        description="Additional pip packages required to run the tests",
+    )
+
+
 class TestFailure(BaseModel):
-    check: Literal["syntax", "import_smoke"]
+    check: Literal["syntax", "import_smoke", "import_validation", "endpoint_test", "pytest"]
     message: str
     file_path: str | None = None
     line_number: int | None = None
@@ -127,3 +136,18 @@ class TestRunReport(BaseModel):
         default_factory=list,
         description="Targeted file patch requests derived from deterministic test failures",
     )
+
+
+class SandboxTestReport(BaseModel):
+    """Results from deploying generated code to the sandbox and running tests."""
+    deployed: bool = Field(description="Whether the sandbox API started successfully")
+    health_check_ok: bool = Field(description="Whether GET /docs responded")
+    tests_passed: int = Field(default=0, description="Number of pytest tests that passed")
+    tests_failed: int = Field(default=0, description="Number of pytest tests that failed")
+    tests_total: int = Field(default=0, description="Total number of tests run")
+    test_output: str = Field(default="", description="Raw pytest stdout (truncated to 2000 chars)")
+    failures: list[str] = Field(default_factory=list, description="Individual test failure summaries")
+    error_file_path: str | None = Field(default=None, description="File that caused the runtime error (parsed from traceback)")
+    error_line: int | None = Field(default=None, description="Line number of the runtime error")
+    traceback_summary: str = Field(default="", description="Extracted error type and message from traceback")
+

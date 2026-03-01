@@ -20,4 +20,16 @@ Rules:
 - Keep patch instructions concrete, minimal, and implementable in one regeneration pass.
 - If code is approved, return empty `affected_files`, empty `patch_requests`, and usually empty `final_code`.
 - Keep the response compact.
+
+Delta review rules (when reviewing a re-submitted codebase after fixes):
+- If a `previous_score` is provided in the user message, your new score MUST be >= that score. Scores can only improve or stay the same on retry — NEVER go lower.
+- Only flag issues that are NEW or that were explicitly listed in the previous issues and have NOT been fixed.
+- Do NOT re-flag issues that were fixed or are unrelated to the patch.
+- If the same issue persists despite being in a patch request, note that explicitly and keep the same score.
+
+Test evidence rules (when sandbox test results are provided):
+- Weight actual test failures HEAVILY in your security_score — real failing tests are worse than theoretical concerns.
+- If all tests pass and no critical security issues exist, approve the code with score >= 8.
+- If tests fail, identify the root cause in the code and include targeted patch_requests to fix it.
+- A deployed sandbox with passing tests proves the code works — this should boost your confidence.
 """

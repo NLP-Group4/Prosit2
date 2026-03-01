@@ -133,6 +133,7 @@ class ImplementerAgent(BaseAgent[SystemArchitecture, GeneratedCode]):
                 system_prompt=IMPLEMENTER_PLAN_SYSTEM_PROMPT,
                 user_prompt=architecture_package,
                 response_schema=CodeGenerationPlan,
+                task_name="Implementer (Plan)",
             )
         except Exception:
             plan = self._fallback_plan(input_data)
@@ -161,6 +162,7 @@ class ImplementerAgent(BaseAgent[SystemArchitecture, GeneratedCode]):
             system_prompt=IMPLEMENTER_FILE_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             temperature=0.15,
+            task_name="Implementer (Code Generation)",
         )
 
     async def _patch_file_content(
@@ -199,6 +201,7 @@ class ImplementerAgent(BaseAgent[SystemArchitecture, GeneratedCode]):
             system_prompt=IMPLEMENTER_PATCH_FILE_SYSTEM_PROMPT,
             user_prompt=user_prompt,
             temperature=0.1,
+            task_name="Implementer (Patching)",
         )
 
     async def patch_files(

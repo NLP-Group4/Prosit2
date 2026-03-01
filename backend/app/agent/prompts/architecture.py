@@ -12,6 +12,7 @@ You must generate:
 
 Rules:
 - Keep the output compact and implementation-oriented.
+- Output the architecture in the `schema` artifact. Make sure to flesh out the schema entities with required types and constraints.
 - Focus on the backend only: API entrypoints, routers/controllers, services/business logic, auth, repositories/data access, database, and supporting backend-only integrations if required by the charter.
 - Treat the architecture as a big-picture backend design, not an infrastructure or platform diagram.
 - Prefer describing how requests move through the backend, how modules interact, and where key responsibilities live.

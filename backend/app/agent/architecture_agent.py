@@ -84,7 +84,8 @@ class ArchitectureAgent(BaseAgent[ProjectCharter, SystemArchitecture]):
         architecture = await self.llm.generate_structured(
             system_prompt=ARCHITECTURE_SYSTEM_PROMPT,
             user_prompt=prompt,
-            response_schema=SystemArchitecture
+            response_schema=SystemArchitecture,
+            task_name="Architecture Designer",
         )
 
         architecture.mermaid_diagram = self._normalize_mermaid(architecture.mermaid_diagram)

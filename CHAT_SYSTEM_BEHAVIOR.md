@@ -1,27 +1,29 @@
 # Chat System Behavior (Current State)
 
-This document describes how the Interius chat currently behaves across the frontend, interface routing layer, mock pipeline UI, persistence, and attachment/context handling.
-
-It is intended as a pre-push reference so the team can see what is implemented, what is session-only, and what still needs wiring to the real orchestrator.
+This document describes how the Interius chat system currently behaves across the frontend, backend pipeline, persistence, and deployment layers.
 
 ## Scope
 
 This covers the current behavior in:
 
-- `frontend/src/pages/ChatPage.jsx`
-- `frontend/src/pages/ChatPage.css`
-- `frontend/src/lib/interface.js`
-- `frontend/src/lib/threadFileContext.js`
-- `backend/app/agent/interface.py`
-- `backend/app/api/routes/generate.py`
-- Supabase tables `threads`, `messages`, and `message_attachments`
+- `frontend/src/pages/ChatPage.jsx` — Chat UI, pipeline rendering, Schema Visualizer, API Tester, Sandbox deploy
+- `frontend/src/pages/ChatPage.css` — Styling including Schema Visualizer styles
+- `frontend/src/lib/interface.js` — Interface agent client
+- `frontend/src/lib/threadFileContext.js` — Session-local file context cache
+- `backend/app/agent/interface.py` — Intent routing agent
+- `backend/app/agent/orchestrator.py` — Multi-agent pipeline orchestrator
+- `backend/app/agent/llm_client.py` — Provider-agnostic LLM client (OpenRouter compatible)
+- `backend/app/api/routes/generate.py` — SSE streaming endpoints
+- `backend/app/api/routes/sandbox.py` — Sandbox deployment endpoints
+- `backend/app/crud.py` — Database operations with transaction safety
+- Supabase tables `threads`, `messages`, `message_attachments`, `message_artifacts`
 
 ## High-Level Architecture
 
-The chat currently has two runtime lanes:
+The chat has two runtime lanes:
 
-1. Interface / conversation lane (lightweight)
-2. Build / generation lane (mock pipeline UI for now)
+1. **Interface / conversation lane** (fast intent routing and QA)
+2. **Build / generation lane** (full orchestrator pipeline)
 
 ### Interface lane
 
@@ -29,427 +31,194 @@ The frontend sends each user prompt to:
 
 - `POST /api/v1/generate/interface`
 
-The backend `InterfaceAgent` decides whether the prompt should:
+The backend `InterfaceAgent` (configured via `MODEL_INTERFACE`) decides whether the prompt should:
 
 - be answered directly in chat (`should_trigger_pipeline=false`)
 - trigger the generation pipeline (`should_trigger_pipeline=true`)
 
-### Build lane (current frontend behavior)
+### Build lane (LIVE orchestrator)
 
 When `should_trigger_pipeline=true`, the frontend:
 
-- shows the interface acknowledgment message (assistant reply)
-- then runs the existing mock pipeline UI (thought process + generated files + deploy/test actions)
+1. Shows the interface acknowledgment message (assistant reply)
+2. Opens an SSE connection to `POST /api/v1/generate/thread/{threadId}/chat`
+3. Renders real-time pipeline progress across all 7 stages
+4. Displays generated artifacts (Requirements doc, ER schema, Architecture design, Mermaid diagram, Code files, Test suites)
+5. Offers **Test API Endpoints** and **Open Sandbox** actions on completion
 
-The real orchestrator pipeline is not yet wired into the frontend build flow. The backend interface route is live and working; the frontend build path still uses mock generation visuals/output.
+The pipeline is **fully live** — the orchestrator runs the real multi-agent pipeline using the configured OpenRouter models.
+
+## LLM Provider Configuration
+
+The backend is provider-agnostic via an OpenAI-compatible client. Interius uses OpenRouter by default (`LLM_BASE_URL="https://openrouter.ai/api/v1"`) configuring specific models per agent in `config.py`:
+
+| Agent Configuration | Default Model | Purpose |
+|---------------------|---------------|---------|
+| `MODEL_INTERFACE` | `deepseek/deepseek-r1-0528:free` | Fast intent routing and grounded QA |
+| `MODEL_DEFAULT` | `deepseek/deepseek-r1-0528:free` | Requirements, Architecture, Test Generation |
+| `MODEL_IMPLEMENTER` | `arcee-ai/trinity-large-preview:free` | Heavy coding and patching |
+| `MODEL_REVIEWER` | `arcee-ai/trinity-large-preview:free` | Security review and patch requests |
+
+The LLM client uses a **120s timeout** and **3 max retries** to handle large structured generation calls, especially for architecture and implementer stages. It also strips reasoning tags (e.g., `<think>`) before parsing JSON.
 
 ## Message Types and Rendering
 
-Current persisted chat message roles:
+Persisted chat message roles:
 
-- `user`
-- `assistant`
-- `agent`
-
-### Meaning
-
-- `user`: human prompts
-- `assistant`: interface agent conversational reply / routing acknowledgment
-- `agent`: pipeline result message (rendered as the build card)
+- `user` — human prompts
+- `assistant` — interface agent conversational reply / routing acknowledgment
+- `agent` — pipeline result message (rendered as the build card)
 
 ### Rendering behavior
 
-- `assistant` messages render as normal assistant chat bubbles.
-- `agent` messages render as the richer generation/pipeline card.
-- If an `assistant` acknowledgment is immediately followed by an `agent` pipeline result, the UI groups them visually to avoid a double-avatar feel and suppress duplicate narrative text.
+- `assistant` messages render as normal assistant chat bubbles
+- `agent` messages render as the richer generation/pipeline card with progress stages
+- If an `assistant` acknowledgment is immediately followed by an `agent` pipeline result, the UI groups them visually
 
 ## Thread Behavior
 
+### Thread ↔ Backend Project Mapping
+
+Frontend threads (Supabase) map to backend Projects via a marker:
+
+```
+Project.description = "[chat-thread:{supabase_thread_id}]"
+```
+
+This is handled by `_resolve_or_create_project_for_thread()` in `generate.py`. The first build in a thread creates a new Project; subsequent builds in the same thread reuse it.
+
 ### Thread creation
 
-- A new thread is created when the user sends a message and no active thread exists.
-- Initial title is generated from the first prompt.
+- A new thread is created when the user sends a message with no active thread
+- Initial title is generated from the first prompt
 
-### Active thread persistence
+### Thread rename (automatic on first build request)
 
-The selected thread is persisted in:
-
-- `localStorage` key: `interius_active_thread`
-
-This supports reload returning to the same thread.
-
-### Thread loading UX
-
-When switching threads or reloading:
-
-- the chat shows a loading state (`Loading thread…`)
-- it no longer flashes the chat home/empty state first
-
-### Thread rename (manual)
-
-Sidebar thread titles can be renamed inline:
-
-- hover thread row
-- click rename icon
-- `Enter` to save
-- `Esc` to cancel
-
-### Thread rename (automatic on first real build request)
-
-If a thread starts with small talk (e.g., `hello`) and later receives its first build-triggering prompt:
-
-- the thread title is auto-renamed from that first build request
-
-This only happens once per thread (before any prior `agent` build result exists), so follow-up prompts like file retrieval requests do not keep changing the title.
-
-## Login / Navigation Behavior
-
-Authenticated navigation behavior was improved to avoid shaky browser-back transitions:
-
-- login navigation uses `replace`, not push
-- authenticated users visiting `/` are redirected to `/chat`
-
-This prevents the browser back button from frequently landing on the marketing homepage during an active session.
+If a thread starts with small talk and later receives its first build-triggering prompt, the thread title is auto-renamed from that build request (once per thread).
 
 ## Interface Agent Behavior
 
-Backend file:
-
-- `backend/app/agent/interface.py`
+Backend file: `backend/app/agent/interface.py`
 
 ### Role
 
 The interface agent acts as:
 
-- conversational assistant (for non-build prompts)
-- intent router (for build prompts)
+- Conversational assistant (for non-build prompts)
+- Intent router (for build prompts)
+- Thread code Q&A handler (for questions about previously generated code)
 
 ### Output shape
 
-The interface route returns an `InterfaceDecision` with:
+Returns an `InterfaceDecision` with:
 
-- `intent`
-- `should_trigger_pipeline`
-- `assistant_reply`
-- `pipeline_prompt` (for build triggers)
+- `intent` — classified intent type (`pipeline_request`, `context_question`, `social`, `clarification`)
+- `should_trigger_pipeline` — boolean
+- `assistant_reply` — conversational text
+- `pipeline_prompt` — refined prompt for the orchestrator
+- `action_type` — `chat | build_new | continue_from_architecture | artifact_retrieval`
+- `execution_plan` — optional list of pipeline steps to resume/skip
 
-### Fallback behavior
+### Thread Code Q&A
 
-If the interface agent route fails (backend route exception):
+When the interface detects a question about previously generated code (and `should_trigger_pipeline=false`), it:
 
-- backend returns a safe pipeline fallback decision
+1. Queries ChromaDB for relevant generated code snippets from the thread
+2. Feeds them to the LLM with a grounded Q&A prompt
+3. Returns an answer citing specific files and line numbers
 
-If the frontend cannot reach the interface route (backend down):
+## Pipeline Stages and Artifacts
 
-- frontend falls back to mock pipeline path
+### 1. Requirements Stage
+- Produces: `ProjectCharter` (entities, endpoints, business rules, auth)
+- Frontend receives: Requirements Markdown preview + **Schema Visualizer ER diagram JSON**
 
-### Identity / tone
+### 2. Architecture Stage
+- Produces: `SystemArchitecture` (design document, Mermaid diagram, components, data model, endpoints)
+- Frontend receives: Architecture Design Markdown + interactive Mermaid diagram
 
-The agent is instructed to speak as Interius, but:
+### 3. Implementer Stage
+- Produces: `GeneratedCode` (plan-then-generate pattern)
+- Frontend receives: File list with code preview panel
 
-- it should not prefix responses with `Interius:`
-- any label-like `Interius:` prefix is stripped before sending to UI
+### 4. Test Runner Stage (Deterministic)
+- Produces: `TestReport`
+- Runs syntax compilation and import smoke tests. Generates auto-patch requests for the implementer upon failure.
+- Frontend receives: Check results (pass/fail)
 
-## Build vs Conversation Flow
+### 5. Test Generator Stage (LLM)
+- Produces: `GeneratedTests`
+- Generates a custom `pytest` suite for the architecture. Output is non-blocking.
+- Frontend receives: Test file list
 
-### Non-build prompt (`should_trigger_pipeline=false`)
+### 6. Reviewer Stage
+- Produces: `ReviewReport` (issues, suggestions, security score, patch requests)
+- **Review Loop:** Up to 5 fix-and-re-review passes. Code is approved only if `approved == True` AND `security_score >= 7`.
+- Frontend receives: Review score badge, revision notifications
 
-Frontend behavior:
+### 7. Sandbox Deploy Stage
+- Produces: `SandboxTestReport`
+- **Deploy Loop:** Up to 3 deploy-and-test retries. Extracts Python tracebacks and auto-patches failing files via the orchestrator.
+- Frontend receives: Test pass/fail counts, status indicators
 
-1. user message is shown and persisted
-2. interface route returns direct reply
-3. assistant reply is shown and persisted
-4. no pipeline UI runs
+## Schema Visualizer & API Tester
 
-### Build prompt (`should_trigger_pipeline=true`)
+### Schema Visualizer
+The Schema Visualizer is an interactive SVG component rendered in `ChatPage.jsx` that displays ER diagrams generated from the requirements artifact.
+1. `_build_schema_visualizer_artifact()` in `generate.py` parses `ProjectCharter.entities`
+2. Generates a JSON schema rendered by the `SchemaVisualizer` component with PK/FK/nullable badges and hover states.
 
-Frontend behavior:
+### Dynamic API Tester
+The frontend extracts `endpoints` from the `ProjectCharter` artifact to dynamically render interactive mock endpoints in the right-side API Tester panel.
 
-1. user message is shown and persisted
-2. interface route returns acknowledgment + routing decision
-3. assistant acknowledgment is shown and persisted
-4. mock pipeline card is shown and runs
-5. final `agent` pipeline result is persisted
+## Sandbox Deployment
 
-## Chat Persistence Model
+1. The orchestrator fetches the final code and generated tests.
+2. Writes files to the shared Docker volume `/sandbox/{project_id}/`.
+3. Auto-patches common LLM code-generation mistakes via `_auto_patch_content()`.
+4. Writes a `requirements.txt` and `start.sh` launcher script.
+5. The sandbox container runs `start.sh` natively — installing dependencies, running `uvicorn`, waiting for a Python `urllib` health check, and executing `pytest`.
+6. Results read via the output `pytest.log`.
 
-### Supabase (long-term persistence)
+## Chat Persistence
 
-Persisted:
+### Supabase (long-term frontend persistence)
 
-- `threads`
-- `messages`
-- `message_attachments` (metadata only)
+- `threads` — thread metadata
+- `messages` — chat messages (user/assistant/agent)
+- `message_attachments` — file metadata (not raw content)
+- `message_artifacts` — generated artifact JSON (requirements, architecture, code file map)
 
-Not persisted yet:
+### Backend PostgreSQL (pipeline data)
 
-- parsed attachment contents
-- transient pipeline streaming steps/thought-process state
+- `Project` → `GenerationRun` → `ArtifactRecord` chain
+- **Artifact Store:** Large code bundles are stored on-disk in `backend/artifact_store/` and referenced via `bundle_ref`.
 
-### Local browser persistence
+### Browser storage
 
-#### `localStorage`
+- `localStorage`: `interius_active_thread`
+- `sessionStorage`: memory context caches
 
-- `interius_active_thread` (active thread selection)
+## Transaction Safety
 
-#### `sessionStorage` (temporary)
-
-Used for interface/build context helpers only.
-
-1. Interface conversation context cache (per thread)
-2. Thread file context cache (per thread, includes parsed text when available)
-
-## Attachment Handling (Current Design)
-
-This is intentionally split into:
-
-1. Attachment metadata (persistent)
-2. Attachment content (ephemeral/session-local)
-
-### Why
-
-This keeps the UX honest and lightweight:
-
-- the app can show historical attachments after reload
-- Interius does not pretend it still has file contents if the session cache is gone
-
-## `message_attachments` (metadata-only persistence)
-
-Supabase table:
-
-- `message_attachments`
-
-Stored fields include:
-
-- `thread_id`
-- `message_id`
-- `user_id`
-- `original_name`
-- `mime_type`
-- `size_bytes`
-- `created_at`
-
-This supports:
-
-- showing attachment chips after reload/thread reopen
-- informing the interface agent that a file existed (metadata awareness)
-
-It does not store raw file content.
-
-## Thread File Context Cache (Session-Local)
-
-Frontend file:
-
-- `frontend/src/lib/threadFileContext.js`
-
-This stores temporary, per-thread file context in `sessionStorage`.
-
-### What is stored
-
-Per file (session-local):
-
-- file metadata (name/type/size)
-- `has_text_content`
-- `text_excerpt` (capped)
-- `text_content` (capped, for future build handoff)
-
-### TTL / lifecycle
-
-TTL is currently:
-
-- `30 minutes`
-
-It is also cleared on:
-
-- logout
-- thread delete
-
-It will also disappear when the browser tab/window session ends (normal `sessionStorage` behavior).
-
-### Important nuance
-
-- A same-tab page refresh usually keeps `sessionStorage`
-- Closing the tab/window ends the session and removes the parsed file content cache
-
-## File Parsing Behavior (Current)
-
-### Text-like files (works now)
-
-The frontend parses text-like files in-browser and stores capped text in the thread file context cache.
-
-Examples:
-
-- `.txt`
-- `.md`
-- `.json`
-- `.csv`
-- `.py`
-- `.js`
-- `.ts`
-- `.sql`
-- etc.
-
-### PDF files (partially works now)
-
-PDF parsing is implemented client-side using `pdfjs-dist` and works when the PDF has an embedded/selectable text layer.
-
-Supported now:
-
-- text-based PDFs
-- mixed PDFs (text + graphics), text portions can be extracted
-
-Not fully supported yet:
-
-- scanned/image-only PDFs (no text layer)
-- OCR is not implemented
-
-When PDF text extraction fails or no text exists:
-
-- Interius still knows the PDF metadata
-- Interius may ask the user to re-upload or paste the relevant section if content is needed
-
-## Interface Agent Context Inputs (Current)
-
-The interface route now receives three inputs from the frontend:
-
-1. `prompt`
-2. `recent_messages` (conversation context)
-3. `attachment_summaries` (lightweight file context only)
-
-### Attachment summaries contain
-
-- filename
-- mime type
-- size
-- `has_text_content`
-- short excerpt (when available)
-
-The interface agent does not receive full raw file contents.
-
-## Orchestrator Build Context (Current vs Planned)
-
-### Current state
-
-When a build is triggered, the frontend can already retrieve thread file context from:
-
-- `getThreadBuildContextFiles(threadId)`
-
-This includes capped `text_content` for files parsed in the current session.
-
-However, this is only a placeholder hook right now. The real orchestrator request payload is not yet wired to consume these files in the frontend flow.
-
-### Planned
-
-On real orchestrator wiring, build requests should receive:
-
-- `pipeline_prompt`
-- `thread_context_files`
-  - filename
-  - mime type
-  - size
-  - `has_text_content`
-  - `text_content` (when available)
-
-This keeps the interface agent lightweight while allowing the orchestrator to use richer file context.
-
-## Honest UX Rules (Implemented Direction)
-
-The current direction is intentionally honest:
-
-- if content exists in the current session cache, Interius can use it
-- if only metadata exists (e.g., after a new session), Interius should say so and ask for re-upload/paste if needed
-
-This avoids pretending the system still has file contents when it only has metadata.
-
-## Attachment-Only Sends
-
-If a user sends attachments without text:
-
-- a placeholder user message is shown: `Attached context files.`
-- files are recorded in thread file context and metadata persistence
-- the interface agent responds acknowledging that files were attached as thread context
-
-This allows a later build prompt to reuse the attached context (if still in session).
-
-## Current UX Improvements Already in Place (Chat)
-
-Not exhaustive, but relevant to behavior:
-
-- thread switch/reload no longer flashes chat home
-- user message wrapping fixed (no forced weird line breaks on short text)
-- composer height resets after send
-- thought process panel auto-closes after completion
-- build acknowledgment + pipeline card duplicate message/avatar behavior reduced
-- assistant avatars use the Interius mini mark
-
-## Known Limitations (Current)
-
-1. Real orchestrator integration is not yet wired in the frontend build path (mock pipeline still used)
-2. Parsed file content is session-local only (by design for now)
-3. PDF OCR is not implemented (image/scanned PDFs remain metadata-only)
-4. Attachment content is not persisted to Supabase storage yet
-5. Streaming thought-process state is UI simulation only (historical agent messages are reconstructed as completed)
-
-## Recommended Next Steps
-
-### High impact / low risk
-
-1. Wire `thread_context_files` into the real orchestrator build payload
-2. Add an explicit UI indicator per attachment:
-   - `Parsed text available`
-   - `Metadata only`
-3. Add PDF OCR fallback (optional, later) for scanned PDFs
-
-### Medium term
-
-1. Add interface action types:
-   - `chat`
-   - `build`
-   - `artifact_retrieval`
-   - later `partial_pipeline` / `resume`
-2. Add orchestrator execution plan support (`skip_stages`, reuse prior artifacts)
-
-## Supabase Schema Notes (Delta Already Applied)
-
-Current chat implementation assumes:
-
-- `messages.role` allows `assistant`
-- `message_attachments` table exists with RLS policies
-
-If the app shows warnings about missing `message_attachments`, it usually means the SQL delta was not applied in the current Supabase project.
+All CRUD mutations in `crud.py` are wrapped in try/except with `session.rollback()` to prevent idle transaction blocks on PostgreSQL database errors.
 
 ## Quick Manual Test Checklist
 
 ### Conversation routing
-
-1. Send `hello`
-2. Expect direct assistant reply (no pipeline card)
+1. Send `hello` → expect direct assistant reply (no pipeline)
+2. Ask for previously attached file → expect context retrieval
 
 ### Build routing
+1. Send a build prompt → expect acknowledgment + 7-stage pipeline trigger
+2. Verify ER diagram schema renders after Requirements stage
+3. Verify test generation and review score badge appear
+4. Verify dynamic API tester updates with custom routes
 
-1. Send a build prompt
-2. Expect assistant acknowledgment
-3. Expect mock pipeline card after acknowledgment
+### Sandbox deployment
+1. After build completes, observe auto-deploy status in chat.
+2. Click "Open Sandbox" to view Swagger UI at `http://localhost:9000/docs`.
 
-### Text file context (same session)
-
-1. Attach `.txt` file with useful content
-2. Send a follow-up asking about the file
-3. Expect more context-aware response
-
-### Metadata-only behavior (after new session / TTL expiry)
-
-1. Attach file and send
-2. Reload in a new session (or wait for TTL / close tab)
-3. Reopen thread
-4. Attachment chips should still appear (metadata)
-5. Ask Interius to use/read the file
-6. Expect honest clarification / re-upload request if content is unavailable
-
-### PDF behavior
-
-1. Attach a text-based PDF
-2. Ask a question based on it
-3. If PDF has a real text layer, context may work in-session
-4. If it is scanned/image-only, expect metadata-only fallback behavior
-
+### Thread Code Q&A
+1. Generate code in a thread
+2. Ask "how does the auth endpoint work?" → expect grounded answer with source code citations

@@ -23,6 +23,7 @@ Choose `should_trigger_pipeline=false` for:
 
 Return a concise assistant reply:
 - If no pipeline: directly answer or ask a clarifying question.
+
 - If pipeline: acknowledge and say Interius is starting generation.
 - Always speak as Interius (use the name "Interius" in the assistant reply).
 - Do not prefix replies with a speaker label like "Interius:".
@@ -151,6 +152,7 @@ class InterfaceAgent(BaseAgent[str, InterfaceDecision]):
             system_prompt=INTERFACE_SYSTEM_PROMPT,
             user_prompt=self._build_user_prompt(text, recent_messages, attachment_summaries),
             response_schema=InterfaceDecision,
+            task_name="Interface",
         )
         return self._normalize_decision(text, decision, attachment_summaries)
 

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -100,12 +100,26 @@ const AGENT_PHASE_2 = [
     },
     {
         id: 'review',
-        text: 'Reviewing generated code…',
-        doneText: 'Review completed.',
+        text: 'Reviewing implementation…',
+        doneText: 'Security review complete.',
         sub: [
-            { label: 'Check correctness and security' },
-            { label: 'Apply fixes if needed' },
-            { label: 'Finalize code package' },
+            { label: 'Check for security flaws' },
+            { label: 'Analyze latency risks' },
+            { label: 'Verify syntax structure' }
+        ]
+    }
+];
+
+const AGENT_PHASE_3 = [
+    {
+        id: 'deploy',
+        text: 'Deploying to sandbox…',
+        doneText: 'Sandbox deployment and testing complete.',
+        icon: 'deploy',
+        sub: [
+            { label: 'Provision execution environment' },
+            { label: 'Install backend dependencies' },
+            { label: 'Execute endpoint smoke tests' },
         ]
     }
 ];
@@ -907,7 +921,6 @@ function MermaidPreview({ code, theme }) {
         />
     );
 }
-
 function isSchemaVisualizerPreview(filename) {
     return String(filename || '').toLowerCase().endsWith('.schema.json');
 }
@@ -1082,6 +1095,7 @@ function SchemaVisualizer({ content }) {
         </div>
     );
 }
+
 export default function ChatPage({ theme, onThemeToggle }) {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
@@ -1109,6 +1123,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
     const [autoApprove, setAutoApprove] = useState(true);
     const [runtimePreviewFiles, setRuntimePreviewFiles] = useState({});
     const [copyPreviewStatus, setCopyPreviewStatus] = useState('idle');
+    const [sandboxStatus, setSandboxStatus] = useState('idle');
+    const [sandboxUrl, setSandboxUrl] = useState('');
 
     const modelDropdownRef = useRef(null);
 
@@ -1145,10 +1161,76 @@ export default function ChatPage({ theme, onThemeToggle }) {
         latestAgentMessage &&
         (latestAgentMessage.status === 'running' || latestAgentMessage.status === 'awaiting_approval')
     );
+
+    const dynamicEndpoints = useMemo(() => {
+        const msgWithReqs = [...messages].reverse().find(m => 
+            m?.requirementsArtifact?.endpoints || 
+            m?.approvalCheckpoint?.requirementsArtifact?.endpoints ||
+            m?.persistedArtifact?.requirementsArtifact?.endpoints
+        );
+
+        let eps = [];
+        if (msgWithReqs?.requirementsArtifact?.endpoints) {
+            eps = msgWithReqs.requirementsArtifact.endpoints;
+        } else if (msgWithReqs?.approvalCheckpoint?.requirementsArtifact?.endpoints) {
+            eps = msgWithReqs.approvalCheckpoint.requirementsArtifact.endpoints;
+        } else if (msgWithReqs?.persistedArtifact?.requirementsArtifact?.endpoints) {
+            eps = msgWithReqs.persistedArtifact.requirementsArtifact.endpoints;
+        }
+
+        if (eps && eps.length > 0) {
+            return eps.map((ep, i) => {
+                const method = (ep.method || 'GET').toUpperCase();
+                const path = ep.path || '/';
+                const isPayload = ['POST', 'PUT', 'PATCH'].includes(method);
+                const hasParam = path.includes(':') || path.includes('{');
+                return {
+                    id: `dyn-${i}`,
+                    method: method,
+                    path: path,
+                    description: ep.description || '',
+                    inputLabel: isPayload ? 'Request Payload (JSON)' : (hasParam ? 'Path Parameter' : null),
+                    placeholder: isPayload ? '{}' : '...',
+                    mockResponse: JSON.stringify({
+                        success: true,
+                        message: `Dynamic mock response for ${method} ${path}. Deploy the Live Sandbox to test actual data!`,
+                    }, null, 2)
+                };
+            });
+        }
+        return ENDPOINTS; // Fallback to hardcoded default
+    }, [messages]);
     const openTesterPanel = useCallback(() => {
         setPreviewFile(null);
         setPanelMode('tester');
     }, []);
+
+    const openSandboxPanel = useCallback(() => {
+        setPreviewFile(null);
+        setPanelMode('sandbox');
+    }, []);
+
+    const deployToSandbox = async (threadId) => {
+        setSandboxStatus('deploying');
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/sandbox/deploy-by-thread/${threadId}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session?.access_token || ''}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            if (!res.ok) throw new Error('Failed to deploy sandbox');
+            const data = await res.json();
+            setSandboxStatus('running');
+            setSandboxUrl(data.swagger_url);
+            openSandboxPanel();
+        } catch (err) {
+            console.error(err);
+            setSandboxStatus('error');
+        }
+    };
 
     const buildResumeCheckpointFromMessage = (msg, promptText) => {
         if (!msg) return null;
@@ -1971,6 +2053,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                     setAgentProgress({ phase: 2, stepIndex: 0, isStreaming: true, status: 'running', stageTimings: streamStageTimings });
                                 } else if (stage === 'reviewer' || stage === 'tester') {
                                     setAgentProgress({ phase: 2, stepIndex: 1, isStreaming: true, status: 'running', stageTimings: streamStageTimings });
+                                } else if (stage === 'sandbox_deploy' || stage === 'sandbox_retry') {
+                                    setAgentProgress({ phase: 3, stepIndex: 0, isStreaming: true, status: 'running', stageTimings: streamStageTimings });
                                 }
                                 return;
                             }
@@ -1996,6 +2080,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                     setAgentProgress({ phase: 2, stepIndex: 1, stageTimings: streamStageTimings });
                                 } else if (stage === 'reviewer' || stage === 'tester') {
                                     setAgentProgress({ phase: 2, stepIndex: 2, stageTimings: streamStageTimings });
+                                } else if (stage === 'sandbox_deploy') {
+                                    setAgentProgress({ phase: 3, stepIndex: 1, stageTimings: streamStageTimings });
                                 }
                                 return;
                             }
@@ -2005,14 +2091,11 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 if (!streamArtifactDocFiles.includes('Requirements Document.md')) {
                                     streamArtifactDocFiles.push('Requirements Document.md');
                                 }
-                                if (!streamArtifactDocFiles.includes('ER Diagram.schema.json') && event.schema_file?.path) {
-                                    streamArtifactDocFiles.push(event.schema_file.path);
-                                }
                                 streamPreviewFiles = {
                                     ...streamPreviewFiles,
-                                    ...buildPreviewMapFromEntries([event.preview_file, event.schema_file].filter(Boolean)),
+                                    ...buildPreviewMapFromEntries(event.preview_file),
                                 };
-                                upsertRuntimePreviewFiles([event.preview_file, event.schema_file].filter(Boolean), threadId);
+                                upsertRuntimePreviewFiles(event.preview_file, threadId);
                                 return;
                             }
 
@@ -2498,7 +2581,7 @@ export default function ChatPage({ theme, onThemeToggle }) {
                 Object.entries(streamGeneratedFileMap).map(([path, content]) => ({ path, content }))
             );
             let streamArtifactDocFiles = Array.isArray(targetMsg?.files)
-                ? targetMsg.files.filter((f) => typeof f === 'string' && isArtifactPreviewFile(f))
+                ? targetMsg.files.filter((f) => typeof f === 'string' && (f.endsWith('.md') || f.endsWith('.mmd')))
                 : [];
 
             setMessages(curr => curr.map(msg => msg.id === msgId ? {
@@ -2540,6 +2623,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, phase: 2, stepIndex: 0, isStreaming: true, status: 'running', stageTimings: streamStageTimings } : msg));
                             } else if (stage === 'reviewer' || stage === 'tester') {
                                 setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, phase: 2, stepIndex: 1, isStreaming: true, status: 'running', stageTimings: streamStageTimings } : msg));
+                            } else if (stage === 'sandbox_deploy' || stage === 'sandbox_retry') {
+                                setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, phase: 3, stepIndex: 0, isStreaming: true, status: 'running', stageTimings: streamStageTimings } : msg));
                             }
                             return;
                         }
@@ -2561,6 +2646,8 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                 setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, phase: 2, stepIndex: 1, stageTimings: streamStageTimings } : msg));
                             } else if (stage === 'reviewer' || stage === 'tester') {
                                 setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, phase: 2, stepIndex: 2, stageTimings: streamStageTimings } : msg));
+                            } else if (stage === 'sandbox_deploy' || stage === 'sandbox_retry') {
+                                setMessages(curr => curr.map(msg => msg.id === msgId ? { ...msg, phase: 3, stepIndex: 1, stageTimings: streamStageTimings } : msg));
                             }
                             return;
                         }
@@ -3068,7 +3155,9 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                             ? prevMsg.text
                                             : '';
                                     const allArtifactFiles = Array.isArray(msg.files) ? msg.files : [];
-                                    const nonCodeArtifacts = allArtifactFiles.filter((f) => isArtifactPreviewFile(f));
+                                    const nonCodeArtifacts = allArtifactFiles.filter((f) =>
+                                        ['Requirements Document.md', 'Architecture Diagram.mmd', 'Architecture Design.md'].includes(f)
+                                    );
                                     const codeArtifactFiles = allArtifactFiles.filter((f) => !nonCodeArtifacts.includes(f));
 
                                     if (assistantIsPipelineAck) {
@@ -3226,6 +3315,57 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                                         </div>
                                                                     );
                                                                 })}
+
+                                                                {/* Render Phase 3 */}
+                                                                {(msg.phase >= 3) && AGENT_PHASE_3.map((step, idx) => {
+                                                                    const isPast = msg.phase > 3 || (msg.phase === 3 && msg.stepIndex > idx) || msg.status === 'completed';
+                                                                    const isCurrent = msg.phase === 3 && msg.stepIndex === idx && msg.isStreaming;
+                                                                    if (!isPast && !isCurrent) return null;
+
+                                                                    return (
+                                                                        <div key={step.id} className={`cp-tree-node ${isCurrent ? 'running' : 'done'}`}>
+                                                                            <div className="cp-tree-main">
+                                                                                {isCurrent ? (
+                                                                                    <button type="button" className="cp-run-stop-btn" title="Stop pipeline" aria-label="Stop pipeline" onClick={handleStopPipeline}>
+                                                                                        <span className="cp-run-spinner" />
+                                                                                    </button>
+                                                                                ) : (
+                                                                                    step.icon === 'deploy' ? (
+                                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                                    ) : (
+                                                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                                                                    )
+                                                                                )}
+                                                                                <span>{isCurrent ? step.text : step.doneText}</span>
+                                                                                {(() => {
+                                                                                    const duration = getStageDuration(msg, 'sandbox_deploy');
+                                                                                    return duration ? <span className="cp-stage-time">{duration}</span> : null;
+                                                                                })()}
+                                                                            </div>
+                                                                            {isPast && step.sub && (
+                                                                                <div className="cp-tree-sub">
+                                                                                    {step.sub.map((s, sIdx) => (
+                                                                                        <div key={sIdx} className="cp-tree-sub-item">
+                                                                                            <span className="cp-tree-elbow">└─</span>
+                                                                                            {autoApprove ? <span className="cp-sub-auto">Autoapproved</span> : <span className="cp-sub-auto">—</span>}
+                                                                                            {!s.action ? (
+                                                                                                <span className="cp-tree-sub-label">{s.label}</span>
+                                                                                            ) : s.action?.startsWith?.('file:') ? (
+                                                                                                <button onClick={() => openFilePreviewer(s.action.split(':')[1])} className="cp-tree-link">
+                                                                                                    {s.label}
+                                                                                                </button>
+                                                                                            ) : (
+                                                                                                <a href={s.action.split(':')[1]} target="_blank" rel="noreferrer" className="cp-tree-link">
+                                                                                                    {s.label} <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 17l9.2-9.2M17 17V7H7" /></svg>
+                                                                                                </a>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
                                                             {Array.isArray(msg.reviewUpdates) && msg.reviewUpdates.length > 0 && (
                                                                 <div className="cp-review-stream">
@@ -3305,59 +3445,64 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                                             )}
 
                                                             {msg.status === 'completed' && msg.phase >= 2 && codeArtifactFiles.length > 0 && (
-                                                                <>
-                                                                    <div className="cp-export-block">
-                                                                        <div className="cp-deploy-content">
-                                                                            Download the generated backend files so you can drop the <code>backend/</code> folder into your project.
-                                                                        </div>
-                                                                        <button
-                                                                            className="cp-action-btn cp-action-download"
-                                                                            onClick={() => exportBackendBundle(
-                                                                                (msg.runMode === 'real' && Object.keys(msg.generatedFileMap || {}).length)
-                                                                                    ? msg.generatedFileMap
-                                                                                    : MOCK_FILES
-                                                                            )}
-                                                                        >
-                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                                                                <polyline points="7 10 12 15 17 10" />
-                                                                                <line x1="12" y1="15" x2="12" y2="3" />
-                                                                            </svg>
-                                                                            Download Backend Files
-                                                                        </button>
+                                                                <div className="cp-export-block">
+                                                                    <div className="cp-deploy-content">
+                                                                        Download the generated backend files so you can drop the <code>backend/</code> folder into your project.
                                                                     </div>
-                                                                    <div className="cp-standalone-action">
-                                                                        <button
-                                                                            className="cp-action-btn cp-action-tester"
-                                                                            onClick={openTesterPanel}
-                                                                        >
-                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                                                                            Test API Endpoints
-                                                                        </button>
-                                                                    </div>
-                                                                </>
+                                                                    <button
+                                                                        className="cp-action-btn cp-action-download"
+                                                                        onClick={() => exportBackendBundle(
+                                                                            (msg.runMode === 'real' && Object.keys(msg.generatedFileMap || {}).length)
+                                                                                ? msg.generatedFileMap
+                                                                                : MOCK_FILES
+                                                                        )}
+                                                                    >
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                                                            <polyline points="7 10 12 15 17 10" />
+                                                                            <line x1="12" y1="15" x2="12" y2="3" />
+                                                                        </svg>
+                                                                        Download Backend Files
+                                                                    </button>
+                                                                    <button
+                                                                        className="cp-action-btn cp-action-tester"
+                                                                        onClick={openTesterPanel}
+                                                                    >
+                                                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                                                                        Test API Endpoints
+                                                                    </button>
+                                                                </div>
                                                             )}
 
-                                                            {/* Always show deployment blocks for completed pipeline phases, regardless of explicit payload flags */}
-                                                            {msg.status === 'completed' && msg.phase >= 2 && msg.runMode !== 'real' && (
+                                                            {/* Sandbox Deployment UI */}
+                                                            {msg.status === 'completed' && msg.phase >= 2 && (
                                                                 <div className="cp-deployment-blocks">
                                                                     <div className="cp-deploy-block">
                                                                         <div className="cp-deploy-content">
-                                                                            Use the interactive API playground to test your generated endpoints.
+                                                                            Deploy this backend to the Live API Sandbox to test actual endpoints.
+                                                                            {sandboxStatus === 'error' && <span style={{ color: 'var(--text-danger)', marginLeft: 8 }}>Deploy failed.</span>}
                                                                         </div>
-                                                                        <button className="cp-action-btn cp-action-tester" onClick={openTesterPanel}>
-                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
-                                                                            Test API Endpoints
-                                                                        </button>
-                                                                    </div>
-                                                                    <div className="cp-deploy-block">
-                                                                        <div className="cp-deploy-content">
-                                                                            Your backend has been packaged and containerized via <a href="https://hub.docker.com/" target="_blank" className="cp-tree-link">dockerhub ↗</a> and deployed to production.
+                                                                        <div className="cp-deploy-actions" style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                                                                            <button className="cp-action-btn cp-action-tester" onClick={openTesterPanel}>
+                                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                                                                                Mock Tester
+                                                                            </button>
+                                                                            {sandboxStatus === 'deploying' ? (
+                                                                                <button className="cp-action-btn cp-action-live loading" disabled style={{ opacity: 0.7 }}>
+                                                                                    <span className="ep-spinner" /> Deploying...
+                                                                                </button>
+                                                                            ) : sandboxStatus === 'running' ? (
+                                                                                <button className="cp-action-btn cp-action-live" onClick={openSandboxPanel}>
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                                                                                    Open Sandbox
+                                                                                </button>
+                                                                            ) : (
+                                                                                <button className="cp-action-btn cp-action-live" onClick={() => deployToSandbox(activeThread)}>
+                                                                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+                                                                                    Run Sandbox
+                                                                                </button>
+                                                                            )}
                                                                         </div>
-                                                                        <a className="cp-action-btn cp-action-live" href="https://app.interius.dev" target="_blank" rel="noopener noreferrer">
-                                                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
-                                                                            View Live API
-                                                                        </a>
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -3586,9 +3731,21 @@ export default function ChatPage({ theme, onThemeToggle }) {
                                     </div>
                                     <p className="cp-rp-desc">Try your endpoints live or use the built-in tester cards while runtime wiring is being refined.</p>
                                     <div className="cp-rp-endpoints">
-                                        {ENDPOINTS.map(ep => <EndpointCard key={ep.id} ep={ep} />)}
+                                        {dynamicEndpoints.map(ep => <EndpointCard key={ep.id} ep={ep} />)}
                                     </div>
                                 </>
+                            )}
+
+                            {panelMode === 'sandbox' && sandboxUrl && (
+                                <div className="cp-rp-iframe-wrapper" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                                    <div className="cp-ide-toolbar">
+                                        <span className="cp-ide-filename">Live API Sandbox</span>
+                                        <a href={sandboxUrl} target="_blank" rel="noopener noreferrer" className="cp-action-btn" style={{ marginLeft: 'auto', padding: '6px 10px' }}>
+                                            Open in new tab ↗
+                                        </a>
+                                    </div>
+                                    <iframe src={sandboxUrl} style={{ flex: 1, border: 'none', background: '#fff' }} title="Sandbox Swagger UI" />
+                                </div>
                             )}
 
                             {panelMode === 'file' && previewFile && (

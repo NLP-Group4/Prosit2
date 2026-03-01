@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://openrouter.ai/api/v1"
     LLM_API_KEY: str = ""
     GEMINI_API_KEY: str = ""  # Retained for fallback
+
     INTERFACE_LLM_BASE_URL: str = ""
     INTERFACE_LLM_API_KEY: str = ""
 

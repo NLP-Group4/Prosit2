@@ -458,6 +458,8 @@ async def run_interface_then_pipeline_ui_stream(
         "implementer": ("implementer", 2, "code"),
         "reviewer": ("reviewer", 2, "review"),
         "tester": ("tester", 2, "review"),
+        "sandbox_deploy": ("sandbox_deploy", 3, "deploy"),
+        "sandbox_retry": ("sandbox_retry", 3, "deploy"),
     }
 
     async for raw_event in run_pipeline_generator(
@@ -598,6 +600,17 @@ async def run_interface_then_pipeline_ui_stream(
                     for req in ((event.get("artifact") or {}).get("patch_requests") or [])
                     if isinstance(req, dict) and req.get("path")
                 ],
+            )
+            continue
+
+        if status == "sandbox_deploy_done":
+            yield _ui_event("stage_completed", stage="sandbox_deploy", phase=3, step="deploy")
+            # Send the artifact as a review update or simple message so it might appear in the stream or final output if needed
+            yield _ui_event(
+                "review_update",
+                kind="completed",
+                message=event.get("message"),
+                artifact=event.get("artifact") or {},
             )
             continue
 

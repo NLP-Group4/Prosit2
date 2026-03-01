@@ -64,6 +64,116 @@ class TestRunner:
                 )
         return failures
 
+    def _import_validation_check(self, files: list[CodeFile]) -> list[TestFailure]:
+        """Check that names used in code are actually imported.
+
+        Catches common LLM mistakes like using ``Field(...)`` without
+        ``from sqlmodel import Field`` or ``from pydantic import Field``.
+        """
+        # Names that are commonly used but forgotten in imports
+        WATCHLIST = {
+            "Field": ["sqlmodel", "pydantic"],
+            "SQLModel": ["sqlmodel"],
+            "Depends": ["fastapi"],
+            "HTTPException": ["fastapi"],
+            "APIRouter": ["fastapi"],
+            "Query": ["fastapi"],
+            "Path": ["fastapi"],
+            "Body": ["fastapi"],
+            "Header": ["fastapi"],
+            "Cookie": ["fastapi"],
+            "Form": ["fastapi"],
+            "File": ["fastapi"],
+            "UploadFile": ["fastapi"],
+            "status": ["fastapi"],
+            "Session": ["sqlmodel"],
+            "Relationship": ["sqlmodel"],
+            "Column": ["sqlalchemy"],
+            "Integer": ["sqlalchemy"],
+            "String": ["sqlalchemy"],
+            "Boolean": ["sqlalchemy"],
+            "BaseModel": ["pydantic"],
+            "Optional": ["typing"],
+            "List": ["typing"],
+        }
+
+        failures: list[TestFailure] = []
+        for code_file in files:
+            if not str(code_file.path or "").endswith(".py"):
+                continue
+            content = code_file.content or ""
+            lines = content.split("\n")
+
+            # Collect all explicitly imported names in this file
+            imported_names: set[str] = set()
+            # Also track star imports (from X import *)
+            has_star_import = False
+
+            for line in lines:
+                stripped = line.strip()
+                # from X import *
+                if re.match(r"^from\s+\S+\s+import\s+\*", stripped):
+                    has_star_import = True
+                # from X import A, B, C
+                from_match = re.match(r"^from\s+\S+\s+import\s+(.+)", stripped)
+                if from_match:
+                    names_str = from_match.group(1)
+                    # Handle multi-line imports and "as" aliases
+                    for name_part in names_str.split(","):
+                        name_part = name_part.strip().rstrip("\\").strip()
+                        if not name_part or name_part == "(":
+                            continue
+                        # Handle "X as Y" — the local name is Y
+                        if " as " in name_part:
+                            imported_names.add(name_part.split(" as ")[-1].strip())
+                        else:
+                            imported_names.add(name_part.strip().rstrip(")"))
+                # import X, import X as Y
+                import_match = re.match(r"^import\s+(.+)", stripped)
+                if import_match and not stripped.startswith("from"):
+                    for mod in import_match.group(1).split(","):
+                        mod = mod.strip()
+                        if " as " in mod:
+                            imported_names.add(mod.split(" as ")[-1].strip())
+                        else:
+                            imported_names.add(mod.split(".")[0].strip())
+
+            if has_star_import:
+                continue  # Can't validate with star imports
+
+            # Check each watchlist name
+            for name, _modules in WATCHLIST.items():
+                if name in imported_names:
+                    continue
+                # Check if the name is actually used in the code (as a call or type hint)
+                # Look for patterns like: Field(...) or : Field or = Field or -> Field
+                usage_pattern = re.compile(
+                    rf'(?<![.\"\'])\b{re.escape(name)}\s*[\(\[=:,\)]'
+                    rf'|(?<![.\"\'])\b{re.escape(name)}\s*$',
+                    re.MULTILINE,
+                )
+                if usage_pattern.search(content):
+                    # Find the line number of first usage
+                    line_num = None
+                    for i, line in enumerate(lines, 1):
+                        if usage_pattern.search(line):
+                            line_num = i
+                            break
+                    failures.append(
+                        TestFailure(
+                            check="import_validation",
+                            message=(
+                                f"Name '{name}' is used but not imported. "
+                                f"Add: from {_modules[0]} import {name}"
+                            ),
+                            file_path=code_file.path,
+                            line_number=line_num,
+                            patchable=True,
+                        )
+                    )
+
+        return failures
+
     @staticmethod
     def _extract_local_trace_failure(traceback_text: str, root: Path) -> tuple[str | None, int | None]:
         # Example traceback line: File "C:\\...\\tmp\\app\\routes.py", line 12, in <module>
@@ -191,6 +301,11 @@ except Exception as exc:
         checks_run = ["syntax"]
         warnings: list[str] = []
         failures = self._syntax_check(code.files or [])
+
+        # Import validation: catch missing imports (e.g. Field, SQLModel) before sandbox
+        checks_run.append("import_validation")
+        import_val_failures = self._import_validation_check(code.files or [])
+        failures.extend(import_val_failures)
 
         with tempfile.TemporaryDirectory(prefix="interius_gen_") as tmpdir:
             root = Path(tmpdir)

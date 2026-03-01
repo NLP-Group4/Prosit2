@@ -1,0 +1,20 @@
+FROM python:3.12-slim
+
+# Pre-install common packages that generated FastAPI apps need.
+# This eliminates the ~60s cold-start pip install on every sandbox deploy.
+RUN pip install --no-cache-dir \
+    fastapi \
+    "uvicorn[standard]" \
+    sqlmodel \
+    pydantic \
+    "pydantic-settings" \
+    httpx \
+    python-jose \
+    passlib \
+    python-multipart \
+    alembic \
+    aiosqlite \
+    ruff
+
+# Working directory for sandbox code
+WORKDIR /sandbox

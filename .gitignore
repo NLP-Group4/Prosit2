@@ -14,3 +14,16 @@ yarn-error.log*
 .idea/
 .vscode/
 *.log
+
+.vscode/*
+!.vscode/extensions.json
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Environments
+.env
+.env.*
+!.env.example

@@ -1,16 +1,34 @@
-# React + Vite
+# Interius Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+The frontend for Interius is a dynamic, reactive single-page application built to interface with the agentic generation pipeline.
 
-Currently, two official plugins are available:
+## Tech Stack
+- **Framework**: [React](https://reactjs.org/) + [Vite](https://vitejs.dev/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Routing**: [TanStack Router](https://tanstack.com/router)
+- **Data Fetching**: [TanStack Query](https://tanstack.com/query)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) + custom animations (Framer Motion)
+- **Components**: [shadcn/ui](https://ui.shadcn.com/)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Architecture
 
-## React Compiler
+The frontend is designed around a unified Dashboard/Generation workspace (`/generate`) that provides a real-time, side-by-side view of the generation process:
+1. **Global Sidebar**: Contains navigation, including a dynamic list of past generated projects fetched continuously via TanStack Query.
+2. **Left Panel**: Navigation and history threads.
+3. **Center Panel**: The chat interface that streams SSE events from the backend to display agent pipeline progress (`PipelineStage`).
+4. **Right Panel**: A split-tab viewer containing:
+   - **Design Docs**: Renders Markdown and Mermaid ecosystem definitions.
+   - **Generated Code**: Syntax-highlighted code with a "Run API" button to trigger the Sandbox container.
+   - **Live API**: An embedded Swagger UI (`localhost:9000/docs`) executing the dynamically generated code.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Running Locally
 
-## Expanding the ESLint configuration
+To run the frontend development server without Docker:
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend will start at `http://localhost:5173`. We recommend running the full stack via Docker Compose (`docker compose up --build`) at the repository root to ensure the backend and database are correctly synchronized.

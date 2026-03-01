@@ -1,0 +1,600 @@
+{
+  "total_prompts": 51,
+  "elapsed_seconds": 88.77,
+  "confusion_matrix": {
+    "tp": 22,
+    "fp": 0,
+    "tn": 28,
+    "fn": 1
+  },
+  "precision": 1.0,
+  "recall": 0.9565,
+  "f1": 0.9778,
+  "accuracy": 0.9804,
+  "category_accuracy": {
+    "acknowledgement": {
+      "total": 3,
+      "correct": 3,
+      "accuracy": 1.0
+    },
+    "clear_build": {
+      "total": 10,
+      "correct": 10,
+      "accuracy": 1.0
+    },
+    "complaint": {
+      "total": 4,
+      "correct": 4,
+      "accuracy": 1.0
+    },
+    "deploy": {
+      "total": 2,
+      "correct": 1,
+      "accuracy": 0.5
+    },
+    "detailed_build": {
+      "total": 3,
+      "correct": 3,
+      "accuracy": 1.0
+    },
+    "general_knowledge": {
+      "total": 3,
+      "correct": 3,
+      "accuracy": 1.0
+    },
+    "greeting": {
+      "total": 5,
+      "correct": 5,
+      "accuracy": 1.0
+    },
+    "intent_build": {
+      "total": 5,
+      "correct": 5,
+      "accuracy": 1.0
+    },
+    "modify": {
+      "total": 3,
+      "correct": 3,
+      "accuracy": 1.0
+    },
+    "question": {
+      "total": 5,
+      "correct": 5,
+      "accuracy": 1.0
+    },
+    "thanks": {
+      "total": 3,
+      "correct": 3,
+      "accuracy": 1.0
+    },
+    "vague": {
+      "total": 5,
+      "correct": 5,
+      "accuracy": 1.0
+    }
+  },
+  "misclassified": [
+    {
+      "prompt": "Run the API in the sandbox",
+      "category": "deploy",
+      "expected": true,
+      "predicted": false,
+      "correct": false,
+      "intent": "clarification",
+      "action_type": "chat",
+      "reply_preview": "Sure, I can help run your API in the sandbox. Could you let me know which API yo"
+    }
+  ],
+  "all_results": [
+    {
+      "prompt": "Hello",
+      "category": "greeting",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Hi. Tell me what you need help with, and I can answer directly or start the buil"
+    },
+    {
+      "prompt": "Hi there!",
+      "category": "greeting",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Hello! How can I assist you today?"
+    },
+    {
+      "prompt": "Hey, how are you?",
+      "category": "greeting",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Hi there! I'm doing great, thanks for asking. How can I help you today?"
+    },
+    {
+      "prompt": "Good morning",
+      "category": "greeting",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Hi. Tell me what you need help with, and I can answer directly or start the buil"
+    },
+    {
+      "prompt": "What's up?",
+      "category": "greeting",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Hey there! I'm here and ready to help whenever you need anything. How can I assi"
+    },
+    {
+      "prompt": "Thanks for the help!",
+      "category": "thanks",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "You\u2019re welcome! If you need anything else, just let me know."
+    },
+    {
+      "prompt": "That was great, thank you",
+      "category": "thanks",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "You're welcome! Glad I could help."
+    },
+    {
+      "prompt": "Awesome, thanks!",
+      "category": "thanks",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "You\u2019re welcome! Let me know if you need anything else."
+    },
+    {
+      "prompt": "I am not happy",
+      "category": "complaint",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "I\u2019m sorry to hear that you\u2019re not happy. How can I assist you further?"
+    },
+    {
+      "prompt": "This is frustrating",
+      "category": "complaint",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "I\u2019m sorry you\u2019re feeling frustrated. How can I help make things easier for you?"
+    },
+    {
+      "prompt": "The code doesn't work and I'm upset",
+      "category": "complaint",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "I\u2019m sorry the code isn\u2019t working and that it\u2019s frustrating. Could you share the "
+    },
+    {
+      "prompt": "I don't like this result",
+      "category": "complaint",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "clarification",
+      "action_type": "chat",
+      "reply_preview": "I\u2019m sorry the result isn\u2019t meeting your expectations. Could you let me know whic"
+    },
+    {
+      "prompt": "What can you do?",
+      "category": "question",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "context_question",
+      "action_type": "chat",
+      "reply_preview": "I can help you design, build, and modify software artifacts such as APIs, code, "
+    },
+    {
+      "prompt": "Who are you?",
+      "category": "question",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "context_question",
+      "action_type": "chat",
+      "reply_preview": "I'm Interius. I can answer questions directly, help clarify requirements, and st"
+    },
+    {
+      "prompt": "How does this work?",
+      "category": "question",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "clarification",
+      "action_type": "chat",
+      "reply_preview": "Interius routes requests: if you ask for code, APIs, or other software artifacts"
+    },
+    {
+      "prompt": "What programming languages do you support?",
+      "category": "question",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "context_question",
+      "action_type": "chat",
+      "reply_preview": "Interius supports generating code in many languages, including Python, JavaScrip"
+    },
+    {
+      "prompt": "Can you explain REST APIs?",
+      "category": "question",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "context_question",
+      "action_type": "chat",
+      "reply_preview": "Sure! REST (Representational State Transfer) APIs are a set of architectural pri"
+    },
+    {
+      "prompt": "What is FastAPI?",
+      "category": "general_knowledge",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "context_question",
+      "action_type": "chat",
+      "reply_preview": "FastAPI is a modern, high\u2011performance web framework for building APIs with Pytho"
+    },
+    {
+      "prompt": "Explain the difference between SQL and NoSQL",
+      "category": "general_knowledge",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "context_question",
+      "action_type": "chat",
+      "reply_preview": "SQL databases are relational, use structured schemas and SQL for queries, while "
+    },
+    {
+      "prompt": "What is an ORM?",
+      "category": "general_knowledge",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "context_question",
+      "action_type": "chat",
+      "reply_preview": "An ORM (Object-Relational Mapping) is a programming technique that lets you inte"
+    },
+    {
+      "prompt": "I want something but I'm not sure what yet",
+      "category": "vague",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "clarification",
+      "action_type": "chat",
+      "reply_preview": "Sure, I can help you figure out what you need. Could you tell me a bit more abou"
+    },
+    {
+      "prompt": "Maybe build something?",
+      "category": "vague",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "clarification",
+      "action_type": "chat",
+      "reply_preview": "Sure! What kind of project or component would you like me to build for you?"
+    },
+    {
+      "prompt": "Hmm let me think about it",
+      "category": "vague",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Take your time! Let me know whenever you're ready to continue."
+    },
+    {
+      "prompt": "I need help",
+      "category": "vague",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "clarification",
+      "action_type": "chat",
+      "reply_preview": "Sure, I\u2019m happy to help! Could you please provide more details about what you ne"
+    },
+    {
+      "prompt": "Not sure what to ask",
+      "category": "vague",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "clarification",
+      "action_type": "chat",
+      "reply_preview": "I\u2019m happy to help! What kind of software project or task are you interested in? "
+    },
+    {
+      "prompt": "Build a REST API for a task management app with users and tasks",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of a REST API for a task management app with use"
+    },
+    {
+      "prompt": "Create a bookstore API with books, authors, and reviews",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of the bookstore API."
+    },
+    {
+      "prompt": "Generate a FastAPI backend for an inventory management system",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of a FastAPI backend for your inventory manageme"
+    },
+    {
+      "prompt": "Build me a blog API with posts, comments, and tags",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of the blog API with posts, comments, and tags."
+    },
+    {
+      "prompt": "I need a user authentication API with JWT tokens and role-based access",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation."
+    },
+    {
+      "prompt": "Create a CRUD API for managing recipes with ingredients",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of a CRUD API for managing recipes and their ing"
+    },
+    {
+      "prompt": "Build an e-commerce backend with products, orders, and customers",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of the e-commerce backend with products, orders,"
+    },
+    {
+      "prompt": "Generate a project management API with teams, projects, and tasks",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of a project management API with teams, projects"
+    },
+    {
+      "prompt": "Make a student management system with courses and enrollments",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of a student management system with courses and "
+    },
+    {
+      "prompt": "Build a movie review API where users can rate and review films",
+      "category": "clear_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of the movie review API."
+    },
+    {
+      "prompt": "I want to build a REST API",
+      "category": "intent_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of your REST API."
+    },
+    {
+      "prompt": "Can you generate a backend for me?",
+      "category": "intent_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of the backend."
+    },
+    {
+      "prompt": "Let's create an API for managing employees",
+      "category": "intent_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of an employee management API."
+    },
+    {
+      "prompt": "I need you to build a backend service",
+      "category": "intent_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of the backend service."
+    },
+    {
+      "prompt": "Generate code for a fitness tracking API",
+      "category": "intent_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation."
+    },
+    {
+      "prompt": "Build a todo API with these fields: title, description, due_date, priority, completed",
+      "category": "detailed_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation."
+    },
+    {
+      "prompt": "Create an API with a users table that has email, password hash, and created_at, and a posts table with title, body, author_id",
+      "category": "detailed_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation."
+    },
+    {
+      "prompt": "I need a REST API for a pet adoption platform with pets, shelters, and adoption applications",
+      "category": "detailed_build",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation of the requested REST API."
+    },
+    {
+      "prompt": "Add a new endpoint for deleting users",
+      "category": "modify",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation."
+    },
+    {
+      "prompt": "Update the API to include pagination on the list endpoints",
+      "category": "modify",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "continue_from_architecture",
+      "reply_preview": "Interius is starting generation."
+    },
+    {
+      "prompt": "Can you regenerate the code with better error handling?",
+      "category": "modify",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "continue_from_architecture",
+      "reply_preview": "Interius is starting generation."
+    },
+    {
+      "prompt": "Deploy the generated code",
+      "category": "deploy",
+      "expected": true,
+      "predicted": true,
+      "correct": true,
+      "intent": "pipeline_request",
+      "action_type": "build_new",
+      "reply_preview": "Interius is starting generation."
+    },
+    {
+      "prompt": "Run the API in the sandbox",
+      "category": "deploy",
+      "expected": true,
+      "predicted": false,
+      "correct": false,
+      "intent": "clarification",
+      "action_type": "chat",
+      "reply_preview": "Sure, I can help run your API in the sandbox. Could you let me know which API yo"
+    },
+    {
+      "prompt": "ok",
+      "category": "acknowledgement",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Got it! Let me know if you need anything else."
+    },
+    {
+      "prompt": "sure",
+      "category": "acknowledgement",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Great! Let me know what you'd like to work on next."
+    },
+    {
+      "prompt": "yes",
+      "category": "acknowledgement",
+      "expected": false,
+      "predicted": false,
+      "correct": true,
+      "intent": "social",
+      "action_type": "chat",
+      "reply_preview": "Great! How can I help you further?"
+    }
+  ]
+}

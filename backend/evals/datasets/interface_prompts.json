@@ -1,0 +1,65 @@
+[
+  {"prompt": "Hello", "label": false, "category": "greeting"},
+  {"prompt": "Hi there!", "label": false, "category": "greeting"},
+  {"prompt": "Hey, how are you?", "label": false, "category": "greeting"},
+  {"prompt": "Good morning", "label": false, "category": "greeting"},
+  {"prompt": "What's up?", "label": false, "category": "greeting"},
+
+  {"prompt": "Thanks for the help!", "label": false, "category": "thanks"},
+  {"prompt": "That was great, thank you", "label": false, "category": "thanks"},
+  {"prompt": "Awesome, thanks!", "label": false, "category": "thanks"},
+
+  {"prompt": "I am not happy", "label": false, "category": "complaint"},
+  {"prompt": "This is frustrating", "label": false, "category": "complaint"},
+  {"prompt": "The code doesn't work and I'm upset", "label": false, "category": "complaint"},
+  {"prompt": "I don't like this result", "label": false, "category": "complaint"},
+
+  {"prompt": "What can you do?", "label": false, "category": "question"},
+  {"prompt": "Who are you?", "label": false, "category": "question"},
+  {"prompt": "How does this work?", "label": false, "category": "question"},
+  {"prompt": "What programming languages do you support?", "label": false, "category": "question"},
+  {"prompt": "Can you explain REST APIs?", "label": false, "category": "question"},
+
+  {"prompt": "What is FastAPI?", "label": false, "category": "general_knowledge"},
+  {"prompt": "Explain the difference between SQL and NoSQL", "label": false, "category": "general_knowledge"},
+  {"prompt": "What is an ORM?", "label": false, "category": "general_knowledge"},
+
+  {"prompt": "I want something but I'm not sure what yet", "label": false, "category": "vague"},
+  {"prompt": "Maybe build something?", "label": false, "category": "vague"},
+  {"prompt": "Hmm let me think about it", "label": false, "category": "vague"},
+  {"prompt": "I need help", "label": false, "category": "vague"},
+  {"prompt": "Not sure what to ask", "label": false, "category": "vague"},
+
+  {"prompt": "Build a REST API for a task management app with users and tasks", "label": true, "category": "clear_build"},
+  {"prompt": "Create a bookstore API with books, authors, and reviews", "label": true, "category": "clear_build"},
+  {"prompt": "Generate a FastAPI backend for an inventory management system", "label": true, "category": "clear_build"},
+  {"prompt": "Build me a blog API with posts, comments, and tags", "label": true, "category": "clear_build"},
+  {"prompt": "I need a user authentication API with JWT tokens and role-based access", "label": true, "category": "clear_build"},
+
+  {"prompt": "Create a CRUD API for managing recipes with ingredients", "label": true, "category": "clear_build"},
+  {"prompt": "Build an e-commerce backend with products, orders, and customers", "label": true, "category": "clear_build"},
+  {"prompt": "Generate a project management API with teams, projects, and tasks", "label": true, "category": "clear_build"},
+  {"prompt": "Make a student management system with courses and enrollments", "label": true, "category": "clear_build"},
+  {"prompt": "Build a movie review API where users can rate and review films", "label": true, "category": "clear_build"},
+
+  {"prompt": "I want to build a REST API", "label": true, "category": "intent_build"},
+  {"prompt": "Can you generate a backend for me?", "label": true, "category": "intent_build"},
+  {"prompt": "Let's create an API for managing employees", "label": true, "category": "intent_build"},
+  {"prompt": "I need you to build a backend service", "label": true, "category": "intent_build"},
+  {"prompt": "Generate code for a fitness tracking API", "label": true, "category": "intent_build"},
+
+  {"prompt": "Build a todo API with these fields: title, description, due_date, priority, completed", "label": true, "category": "detailed_build"},
+  {"prompt": "Create an API with a users table that has email, password hash, and created_at, and a posts table with title, body, author_id", "label": true, "category": "detailed_build"},
+  {"prompt": "I need a REST API for a pet adoption platform with pets, shelters, and adoption applications", "label": true, "category": "detailed_build"},
+
+  {"prompt": "Add a new endpoint for deleting users", "label": true, "category": "modify"},
+  {"prompt": "Update the API to include pagination on the list endpoints", "label": true, "category": "modify"},
+  {"prompt": "Can you regenerate the code with better error handling?", "label": true, "category": "modify"},
+
+  {"prompt": "Deploy the generated code", "label": true, "category": "deploy"},
+  {"prompt": "Run the API in the sandbox", "label": true, "category": "deploy"},
+
+  {"prompt": "ok", "label": false, "category": "acknowledgement"},
+  {"prompt": "sure", "label": false, "category": "acknowledgement"},
+  {"prompt": "yes", "label": false, "category": "acknowledgement"}
+]
