@@ -36,3 +36,67 @@ Interius uses `uv` for python dependency management. Ensure PostgreSQL is runnin
    ```bash
    uv run fastapi run app/main.py --reload
    ```
+
+## Docker Deployment
+
+The repo now includes a root-level `compose.yml` and a production-oriented `backend/Dockerfile` for the backend.
+
+Important: the backend launches per-project sandbox containers from `app/api/routes/sandbox.py`, so the API container needs Docker access on the host. The compose stack therefore mounts `/var/run/docker.sock` into the backend container.
+
+### Required environment
+
+Set these in a server-side `.env` file before starting the stack:
+
+```env
+ENVIRONMENT=production
+PROJECT_NAME=Interius
+FRONTEND_HOST=https://interius-ai.netlify.app
+BACKEND_CORS_ORIGINS=https://interius-ai.netlify.app
+
+SECRET_KEY=replace-with-a-strong-secret
+FIRST_SUPERUSER=admin@example.com
+FIRST_SUPERUSER_PASSWORD=replace-with-a-strong-password
+
+POSTGRES_SERVER=db
+POSTGRES_PORT=5432
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=replace-with-a-db-password
+POSTGRES_DB=app
+POSTGRES_SSLMODE=
+
+LLM_BASE_URL=https://api.openai.com/v1
+LLM_API_KEY=replace-with-your-key
+INTERFACE_LLM_BASE_URL=
+INTERFACE_LLM_API_KEY=
+GEMINI_API_KEY=
+
+MODEL_DEFAULT=gpt-5-mini
+MODEL_INTERFACE=gpt-5-mini
+MODEL_IMPLEMENTER=gpt-5-mini
+MODEL_REVIEWER=gpt-4o-mini
+```
+
+### Start the backend stack
+
+From the repo root:
+
+```bash
+docker compose up -d --build
+```
+
+The backend will:
+
+1. wait for PostgreSQL,
+2. run Alembic migrations,
+3. create initial data,
+4. start Uvicorn on port `8000`.
+
+### Connect Netlify
+
+After the backend is reachable from a public URL, set this in Netlify:
+
+```env
+VITE_BACKEND_URL=https://your-backend-domain
+```
+
+Then redeploy the frontend.

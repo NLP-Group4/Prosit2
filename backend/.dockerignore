@@ -6,3 +6,17 @@ app.egg-info
 .coverage
 htmlcov
 .venv
+.venv-new
+.venv2
+.pytest_cache
+
+# Runtime data
+artifact_store
+chroma_db
+logs
+sandbox_data
+error.log
+sandbox_error.txt
+
+# Local tooling
+.idea

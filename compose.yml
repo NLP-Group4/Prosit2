@@ -1,0 +1,66 @@
+name: prosit2
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-app}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      PROJECT_NAME: ${PROJECT_NAME:-Interius}
+      FRONTEND_HOST: ${FRONTEND_HOST}
+      BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS}
+      SECRET_KEY: ${SECRET_KEY}
+      FIRST_SUPERUSER: ${FIRST_SUPERUSER}
+      FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD}
+      POSTGRES_SERVER: ${POSTGRES_SERVER:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+      POSTGRES_SSLMODE: ${POSTGRES_SSLMODE:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      INTERFACE_LLM_BASE_URL: ${INTERFACE_LLM_BASE_URL:-}
+      INTERFACE_LLM_API_KEY: ${INTERFACE_LLM_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      MODEL_DEFAULT: ${MODEL_DEFAULT:-gpt-5-mini}
+      MODEL_INTERFACE: ${MODEL_INTERFACE:-gpt-5-mini}
+      MODEL_IMPLEMENTER: ${MODEL_IMPLEMENTER:-gpt-5-mini}
+      MODEL_REVIEWER: ${MODEL_REVIEWER:-gpt-4o-mini}
+      SANDBOX_HOST_ROOT: /app/runtime-sandboxes
+      SANDBOX_DOCKER_IMAGE: ${SANDBOX_DOCKER_IMAGE:-python:3.12-slim}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - sandbox_data:/app/runtime-sandboxes
+      - chroma_data:/app/backend/chroma_db
+      - artifact_data:/app/backend/artifact_store
+
+volumes:
+  postgres_data:
+  sandbox_data:
+  chroma_data:
+  artifact_data:
