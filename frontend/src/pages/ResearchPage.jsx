@@ -1,9 +1,23 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import { INTERIUS_REPORT_AUTHORS, INTERIUS_REPORT_CONTENT } from '../content/interiusReport';
 
 export const RESEARCH_POSTS = [
+    {
+        id: "interius-by-mesosa-ai",
+        title: "Interius",
+        excerpt: "A technical report on Interius, covering the problem setting, multi-agent architecture, security model, runtime validation strategy, interfaces, and evaluation framework.",
+        author: INTERIUS_REPORT_AUTHORS.join(', '),
+        date: "Mar 01, 2026",
+        category: "Systems Research",
+        readTime: "18 min read",
+        bgLight: "linear-gradient(135deg, rgba(216, 241, 230, 0.72) 0%, rgba(208, 227, 255, 0.65) 55%, rgba(255, 255, 255, 0.96) 100%)",
+        bgDark: "linear-gradient(135deg, rgba(100, 200, 170, 0.1) 0%, rgba(70, 120, 220, 0.08) 55%, rgba(255,255,255,0.02) 100%)",
+        textColor: "var(--text-primary)",
+        codeLink: "https://github.com/NLP-Group4/Prosit2",
+        content: INTERIUS_REPORT_CONTENT
+    },
     {
         id: "language-models-and-twi",
         title: "Language Models and Competence: N-gram Models for Twi",

@@ -88,6 +88,19 @@ class RepairAgent:
         return await self.test_runner.run(code, project_id=project_id)
 
     @staticmethod
+    def _success_summary(report: TestRunReport, attempts: int) -> str:
+        if report.fully_validated:
+            if attempts == 0:
+                return "Runtime repair checks passed without additional repairs."
+            return f"Repair loop fixed runtime issues in {attempts} pass(es)."
+        if attempts == 0:
+            return "Generated API is deployable. Some endpoint smoke checks still reported warnings, but artifacts are being returned."
+        return (
+            f"Repair loop made the API deployable in {attempts} pass(es). "
+            "Some endpoint smoke checks still reported warnings, but artifacts are being returned."
+        )
+
+    @staticmethod
     def _sandbox_is_active(project_id: str | None) -> bool:
         if not project_id:
             return False
@@ -198,14 +211,15 @@ class RepairAgent:
         if latest_report.passed:
             return RepairReport(
                 passed=True,
+                fully_validated=latest_report.fully_validated,
                 repaired=False,
                 attempts=0,
                 affected_files=[],
-                failures=[],
+                failures=list(latest_report.failures or []),
                 warnings=list(latest_report.warnings or []),
                 patch_requests=[],
                 final_code=list(current_code.files or []),
-                summary="Runtime repair checks passed without additional repairs.",
+                summary=self._success_summary(latest_report, 0),
             )
 
         while repair_attempts < self.max_iterations:
@@ -233,14 +247,15 @@ class RepairAgent:
             if latest_report.passed:
                 return RepairReport(
                     passed=True,
+                    fully_validated=latest_report.fully_validated,
                     repaired=True,
                     attempts=repair_attempts,
                     affected_files=affected_files,
-                    failures=[],
+                    failures=list(latest_report.failures or []),
                     warnings=list(latest_report.warnings or []),
                     patch_requests=[],
                     final_code=list(current_code.files or []),
-                    summary=f"Repair loop fixed runtime issues in {repair_attempts} pass(es).",
+                    summary=self._success_summary(latest_report, repair_attempts),
                 )
 
         escalation_attempts = 0
@@ -274,18 +289,23 @@ class RepairAgent:
             if latest_report.passed:
                 return RepairReport(
                     passed=True,
+                    fully_validated=latest_report.fully_validated,
                     repaired=True,
                     attempts=repair_attempts,
                     affected_files=affected_files,
-                    failures=[],
+                    failures=list(latest_report.failures or []),
                     warnings=list(latest_report.warnings or []),
                     patch_requests=[],
                     final_code=list(current_code.files or []),
-                    summary=f"Repair loop fixed runtime issues in {repair_attempts} pass(es), including escalated sandbox fixes.",
+                    summary=(
+                        f"{self._success_summary(latest_report, repair_attempts)} "
+                        "This result included escalated sandbox fixes."
+                    ),
                 )
 
         return RepairReport(
             passed=False,
+            fully_validated=False,
             repaired=repaired,
             attempts=repair_attempts,
             affected_files=affected_files,

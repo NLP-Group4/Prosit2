@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { RESEARCH_POSTS } from './ResearchPage';
@@ -34,7 +34,7 @@ export default function ResearchPostPage({ onOpenLogin, theme, onThemeToggle }) 
                         <div style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-primary)', marginBottom: '24px', letterSpacing: '0.01em', display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: '12px' }}>
                             <span>{post.date}</span>
                             <span style={{ opacity: 0.3 }}>•</span>
-                            <span style={{ opacity: 0.6, fontWeight: '400', color: 'var(--text-secondary)' }}>Prosit Technical Report</span>
+                            <span style={{ opacity: 0.6, fontWeight: '400', color: 'var(--text-secondary)' }}>Technical Report</span>
                             <span style={{ opacity: 0.3 }}>•</span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <div style={{ width: 18, height: 18, borderRadius: '50%', background: 'var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', color: 'var(--text-primary)' }}>
@@ -52,48 +52,59 @@ export default function ResearchPostPage({ onOpenLogin, theme, onThemeToggle }) 
                             {post.excerpt}
                         </p>
 
-                        <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
-                            <a href={post.codeLink} target="_blank" rel="noopener noreferrer" style={{
-                                padding: '8px 16px',
-                                background: 'transparent',
-                                color: 'var(--text-primary)',
-                                border: '1px solid var(--border-subtle)',
-                                borderRadius: '20px',
-                                fontSize: '0.95rem',
-                                fontWeight: '500',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                textDecoration: 'none',
-                                transition: 'background 0.2s',
-                            }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                            >
-                                View code ↗
-                            </a>
+                        {(post.codeLink || post.externalLink) && (
+                            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                {post.codeLink && (
+                                    <a href={post.codeLink} target="_blank" rel="noopener noreferrer" style={{
+                                        padding: '8px 16px',
+                                        background: 'transparent',
+                                        color: 'var(--text-primary)',
+                                        border: '1px solid var(--border-subtle)',
+                                        borderRadius: '20px',
+                                        fontSize: '0.95rem',
+                                        fontWeight: '500',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        textDecoration: 'none',
+                                        transition: 'background 0.2s',
+                                    }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        View code ↗
+                                    </a>
+                                )}
 
-                            <button style={{
-                                padding: '8px 16px',
-                                background: 'var(--text-primary)',
-                                color: 'var(--bg-primary)',
-                                border: 'none',
-                                borderRadius: '20px',
-                                fontSize: '0.95rem',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                transition: 'background 0.2s'
-                            }}
-                                onMouseEnter={e => e.currentTarget.style.background = 'var(--text-secondary)'}
-                                onMouseLeave={e => e.currentTarget.style.background = 'var(--text-primary)'}
-                            >
-                                Visit prosits.interius.com ↗
-                            </button>
-                        </div>
+                                {post.externalLink && (
+                                    <a
+                                        href={post.externalLink}
+                                        target={post.externalLink.startsWith('http') ? '_blank' : undefined}
+                                        rel={post.externalLink.startsWith('http') ? 'noopener noreferrer' : undefined}
+                                        style={{
+                                            padding: '8px 16px',
+                                            background: 'var(--text-primary)',
+                                            color: 'var(--bg-primary)',
+                                            border: 'none',
+                                            borderRadius: '20px',
+                                            fontSize: '0.95rem',
+                                            fontWeight: '600',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            transition: 'background 0.2s',
+                                            textDecoration: 'none'
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.background = 'var(--text-secondary)'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'var(--text-primary)'}
+                                    >
+                                        {post.externalLinkLabel || 'Open link'} ↗
+                                    </a>
+                                )}
+                            </div>
+                        )}
                     </header>
 
                     <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '60px 0', paddingTop: '40px' }}>
@@ -118,6 +129,14 @@ export default function ResearchPostPage({ onOpenLogin, theme, onThemeToggle }) 
                                     ul: ({ node, ...props }) => <ul style={{ marginBottom: '1.75rem', paddingLeft: '2rem', opacity: 0.9 }} {...props} />,
                                     li: ({ node, ...props }) => <li style={{ marginBottom: '0.75rem' }} {...props} />,
                                     blockquote: ({ node, ...props }) => <blockquote style={{ borderLeft: '4px solid var(--border-subtle)', margin: '2rem 0', padding: '0.5rem 0 0.5rem 1.5rem', fontStyle: 'italic', opacity: 0.8 }} {...props} />,
+                                    table: ({ node, ...props }) => <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2rem', display: 'block', overflowX: 'auto' }} {...props} />,
+                                    th: ({ node, ...props }) => <th style={{ textAlign: 'left', borderBottom: '1px solid var(--border-subtle)', padding: '0.75rem', fontWeight: 600 }} {...props} />,
+                                    td: ({ node, ...props }) => <td style={{ borderBottom: '1px solid var(--border-subtle)', padding: '0.75rem', verticalAlign: 'top' }} {...props} />,
+                                    img: ({ node, ...props }) => <img style={{ width: '100%', height: 'auto', display: 'block', margin: '2rem auto', borderRadius: '16px', border: '1px solid var(--border-subtle)', boxShadow: '0 20px 50px rgba(0,0,0,0.08)' }} {...props} />,
+                                    hr: ({ node, ...props }) => <hr style={{ border: 'none', borderTop: '1px solid var(--border-subtle)', margin: '3rem 0' }} {...props} />,
+                                    code: ({ inline, className, children, ...props }) => inline
+                                        ? <code style={{ background: 'var(--bg-secondary)', padding: '0.15rem 0.35rem', borderRadius: '6px', fontSize: '0.92em' }} {...props}>{children}</code>
+                                        : <code className={className} style={{ display: 'block', background: 'var(--bg-secondary)', padding: '1rem 1.2rem', borderRadius: '14px', overflowX: 'auto', marginBottom: '1.75rem', fontSize: '0.95rem' }} {...props}>{children}</code>,
                                 }}
                             >
                                 {post.content}

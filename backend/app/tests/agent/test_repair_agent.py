@@ -43,6 +43,7 @@ class RepairAgentTests(unittest.IsolatedAsyncioTestCase):
 
         passing_report = TestRunReport(
             passed=True,
+            fully_validated=True,
             checks_run=["syntax", "import_smoke", "endpoint_smoke"],
             failures=[],
             warnings=[],
@@ -89,6 +90,7 @@ class RepairAgentTests(unittest.IsolatedAsyncioTestCase):
 
         failing_report = TestRunReport(
             passed=False,
+            fully_validated=False,
             checks_run=["syntax", "import_smoke", "endpoint_smoke"],
             failures=[
                 TestFailure(
@@ -110,6 +112,7 @@ class RepairAgentTests(unittest.IsolatedAsyncioTestCase):
         )
         passing_report = TestRunReport(
             passed=True,
+            fully_validated=True,
             checks_run=["syntax", "import_smoke", "endpoint_smoke"],
             failures=[],
             warnings=[],
@@ -164,6 +167,7 @@ class RepairAgentTests(unittest.IsolatedAsyncioTestCase):
 
         initial_failure = TestRunReport(
             passed=False,
+            fully_validated=False,
             checks_run=["syntax", "import_smoke", "endpoint_smoke"],
             failures=[
                 TestFailure(
@@ -185,6 +189,7 @@ class RepairAgentTests(unittest.IsolatedAsyncioTestCase):
         )
         repeated_failure = TestRunReport(
             passed=False,
+            fully_validated=False,
             checks_run=["syntax", "import_smoke", "endpoint_smoke"],
             failures=[
                 TestFailure(
@@ -200,6 +205,7 @@ class RepairAgentTests(unittest.IsolatedAsyncioTestCase):
         )
         passing_report = TestRunReport(
             passed=True,
+            fully_validated=True,
             checks_run=["syntax", "import_smoke", "endpoint_smoke"],
             failures=[],
             warnings=[],
@@ -242,6 +248,7 @@ class RepairAgentTests(unittest.IsolatedAsyncioTestCase):
 
         passing_report = TestRunReport(
             passed=True,
+            fully_validated=True,
             checks_run=["syntax", "import_smoke", "endpoint_smoke"],
             failures=[],
             warnings=[],
@@ -269,6 +276,48 @@ class RepairAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(report.repaired)
         self.assertEqual(report.attempts, 1)
         implementer.patch_files.assert_awaited_once()
+
+    async def test_repair_agent_returns_deployable_artifacts_even_with_endpoint_warnings(self):
+        code = GeneratedCode(
+            files=[CodeFile(path="app/main.py", content="from fastapi import FastAPI\napp = FastAPI()\n")],
+            dependencies=["fastapi"],
+        )
+
+        deployable_report = TestRunReport(
+            passed=True,
+            fully_validated=False,
+            checks_run=["syntax", "import_smoke", "endpoint_smoke"],
+            failures=[
+                TestFailure(
+                    check="endpoint_smoke",
+                    message="GET /items returned 500 Internal Server Error in the sandbox.",
+                    file_path="app/routes.py",
+                    line_number=3,
+                    patchable=True,
+                )
+            ],
+            warnings=[],
+            patch_requests=[],
+        )
+
+        agent = RepairAgent(max_iterations=3)
+        agent.test_runner.run = AsyncMock(return_value=deployable_report)
+        agent._sandbox_is_active = lambda _project_id: True
+
+        report = await agent.run(
+            RepairContext(
+                architecture=self._architecture(),
+                code=code,
+                review_report=self._review_report(),
+                project_id="123e4567-e89b-12d3-a456-426614174000",
+            )
+        )
+
+        self.assertTrue(report.passed)
+        self.assertFalse(report.fully_validated)
+        self.assertFalse(report.repaired)
+        self.assertEqual(len(report.failures), 1)
+        self.assertIn("deployable", report.summary.lower())
 
 
 if __name__ == "__main__":

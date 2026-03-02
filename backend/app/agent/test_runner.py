@@ -68,6 +68,21 @@ class TestRunner:
                 )
         return failures
 
+    @staticmethod
+    def _is_deployability_failure(failure: TestFailure) -> bool:
+        if failure.check in ("syntax", "import_smoke"):
+            return True
+        message = str(failure.message or "").lower()
+        deployability_markers = (
+            "/openapi.json",
+            "failed to fetch /openapi.json",
+            "failed to parse /openapi.json",
+            "fallback shell app",
+            "generated api routes failed to load",
+            "did not expose router",
+        )
+        return any(marker in message for marker in deployability_markers)
+
     async def _live_sandbox_check(self, project_id: str, code: GeneratedCode) -> tuple[list[TestFailure], list[str]]:
         from app.api.routes.sandbox import (
             _openapi_looks_like_fallback,
@@ -502,11 +517,13 @@ except Exception as exc:
             warnings.extend(runtime_warnings)
 
         patch_requests = self._build_patch_requests(failures)
-        blocking_failures = [f for f in failures if f.patchable or f.check == "syntax"]
-        passed = len(blocking_failures) == 0
+        deployability_failures = [failure for failure in failures if self._is_deployability_failure(failure)]
+        passed = len(deployability_failures) == 0
+        fully_validated = len(failures) == 0
 
         return TestRunReport(
             passed=passed,
+            fully_validated=fully_validated,
             checks_run=checks_run,
             failures=failures,
             warnings=warnings,

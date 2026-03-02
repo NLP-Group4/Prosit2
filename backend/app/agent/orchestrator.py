@@ -461,6 +461,13 @@ async def run_pipeline_generator(
         review_artifact_for_completion["approved"] = bool(repair_artifact_for_completion.get("passed"))
         if review_artifact_for_completion["repair"]["summary"] not in (review_artifact_for_completion.get("suggestions") or []):
             review_artifact_for_completion.setdefault("suggestions", []).append(review_artifact_for_completion["repair"]["summary"])
+        if (
+            review_artifact_for_completion["approved"]
+            and not bool(repair_artifact_for_completion.get("fully_validated"))
+        ):
+            review_artifact_for_completion.setdefault("suggestions", []).append(
+                "The generated API is deployable and artifacts are released, but some endpoint smoke checks still reported warnings."
+            )
 
         yield json.dumps({
             "status": "repairer_done",
@@ -482,7 +489,11 @@ async def run_pipeline_generator(
 
         yield json.dumps({
             "status": "completed",
-            "message": "Pipeline finished successfully!",
+            "message": (
+                "Pipeline finished successfully!"
+                if bool(repair_artifact_for_completion.get("fully_validated"))
+                else "Pipeline finished with deployable artifacts and runtime warnings."
+            ),
             "artifact": review_artifact_for_completion,
         })
         _update_run_status_safely(session=session, run_id=run_id, status="completed")

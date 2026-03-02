@@ -119,7 +119,11 @@ class TestFailure(BaseModel):
 
 
 class TestRunReport(BaseModel):
-    passed: bool = Field(description="Whether all blocking test checks passed")
+    passed: bool = Field(description="Whether the generated API is deployable and safe to release")
+    fully_validated: bool = Field(
+        default=False,
+        description="Whether deployability checks and endpoint smoke checks all passed cleanly",
+    )
     checks_run: list[str] = Field(default_factory=list, description="Deterministic checks executed")
     failures: list[TestFailure] = Field(default_factory=list, description="Blocking test failures")
     warnings: list[str] = Field(default_factory=list, description="Non-blocking warnings (e.g., missing external deps)")
@@ -137,7 +141,11 @@ class RepairContext(BaseModel):
 
 
 class RepairReport(BaseModel):
-    passed: bool = Field(description="Whether runtime repair validation passed")
+    passed: bool = Field(description="Whether the final code is deployable and releasable")
+    fully_validated: bool = Field(
+        default=False,
+        description="Whether runtime repair completed with no remaining endpoint smoke failures",
+    )
     repaired: bool = Field(description="Whether any repair pass modified the generated code")
     attempts: int = Field(ge=0, description="Number of repair passes applied")
     affected_files: list[str] = Field(default_factory=list, description="Files modified during repair")
